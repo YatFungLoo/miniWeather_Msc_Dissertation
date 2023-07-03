@@ -236,7 +236,7 @@ contains
     endif
 
     !Apply the tendencies to the fluid state
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) !nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
@@ -283,7 +283,7 @@ contains
     !Compute the hyperviscosity coefficient
     hv_coef = -hv_beta * dx / (16*dt)
     !Compute fluxes in the x-direction for each cell
-    !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) !nowait
     do k = 1 , nz
 
       do i = 1 , nx+1
@@ -314,7 +314,7 @@ contains
     enddo
 
     !Use the fluxes to compute tendencies for each cell
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) !nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
@@ -340,7 +340,7 @@ contains
     !Compute the hyperviscosity coefficient
     hv_coef = -hv_beta * dz / (16*dt)
     !Compute fluxes in the x-direction for each cell
-    !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) !nowait
     do k = 1 , nz+1
 
       do i = 1 , nx
@@ -376,7 +376,7 @@ contains
     enddo
 
     !Use the fluxes to compute tendencies for each cell
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) !nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
@@ -398,7 +398,7 @@ contains
     real(rp) :: z
 
     if (nranks == 1) then
-      !$omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid) nowait
+      !$omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid) !nowait
       do ll = 1 , NUM_VARS
         do k = 1 , nz
           state(-1  ,k,ll) = state(nx-1,k,ll)
@@ -415,7 +415,7 @@ contains
     call mpi_irecv(recvbuf_r,hs*nz*NUM_VARS,mpi_type,right_rank,1,MPI_COMM_WORLD,req_r(2),ierr)
 
     !Pack the send buffers
-    !$omp target teams distribute parallel do simd collapse(3)  depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(3)  depend(inout:asyncid) !nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do s = 1 , hs
@@ -425,7 +425,7 @@ contains
       enddo
     enddo
 
-    !$omp target update from(sendbuf_l,sendbuf_r) depend(inout:asyncid) nowait
+    !$omp target update from(sendbuf_l,sendbuf_r) depend(inout:asyncid) !nowait
     !$omp taskwait
 
     !Fire off the sends
@@ -435,10 +435,10 @@ contains
     !Wait for receives to finish
     call mpi_waitall(2,req_r,status,ierr)
 
-    !$omp target update to(recvbuf_l,recvbuf_r) depend(inout:asyncid) nowait
+    !$omp target update to(recvbuf_l,recvbuf_r) depend(inout:asyncid) !nowait
 
     !Unpack the receive buffers
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) !nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do s = 1 , hs
@@ -453,7 +453,7 @@ contains
 
     if (data_spec_int == DATA_SPEC_INJECTION) then
       if (myrank == 0) then
-        !$omp target teams distribute parallel do simd depend(inout:asyncid) nowait
+        !$omp target teams distribute parallel do simd depend(inout:asyncid) !nowait
         do k = 1 , nz
           z = (k_beg-1 + k-0.5_rp)*dz
           if (abs(z-3*zlen/4) <= zlen/16) then
@@ -472,7 +472,7 @@ contains
     implicit none
     real(rp), intent(inout) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
     integer :: i, ll
-    !$omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid) !nowait
     do ll = 1 , NUM_VARS
       do i = 1-hs,nx+hs
         if (ll == ID_WMOM) then
@@ -789,7 +789,7 @@ contains
     real(rp), allocatable :: dens(:,:), uwnd(:,:), wwnd(:,:), theta(:,:)
     real(rp) :: etimearr(1)
 
-    !$omp target update from(state) depend(inout:asyncid) nowait
+    !$omp target update from(state) depend(inout:asyncid) !nowait
     !$omp taskwait
 
     !Inform the user
