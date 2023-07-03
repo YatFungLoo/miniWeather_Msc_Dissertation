@@ -15,4 +15,4 @@ module load gcc/12.2.0-gpu-offload
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/mnt/lustre/indy2lfs/sw/cuda/9.0/lib64
 export OMP_NUM_THREADS=2
 
-srun -n 1 ./openmp45_gfortran
+srun -n 1 ../openmp45_gcc12

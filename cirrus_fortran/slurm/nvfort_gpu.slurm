@@ -11,6 +11,6 @@
 
 # Load the required modules
 module load nvidia/nvhpc
-export OMP_NUM_THREADS=2
+# export OMP_NUM_THREADS=2
 
-srun -n 1 ./openmp45_nvfortran
+srun -n 1 ../openmp45_nvhpc
