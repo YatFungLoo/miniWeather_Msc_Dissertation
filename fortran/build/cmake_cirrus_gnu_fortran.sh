@@ -10,7 +10,8 @@ module load epcc/setup-env
 
 # # load gcc compilers
 module load gcc/12.2.0-gpu-offload
-module load openmpi/4.1.4-cuda-11.6 cmake
+module load openmpi/4.1.4-cuda-11.8
+module load cmake
 
 PARALLEL_NETCDF=/work/m22oc/m22oc/s1754999/Project/PnetCDF_install
 export PATH=$PATH:$PARALLEL_NETCDF
