@@ -137,7 +137,6 @@ int main(int argc, char **argv) {
   init( &argc , &argv );
 
 #pragma omp target data map(to:state_tmp[:(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[:nz+2*hs],hy_dens_theta_cell[:nz+2*hs],hy_dens_int[:nz+1],hy_dens_theta_int[:nz+1],hy_pressure_int[:nz+1]) \
-        // map(alloc:flux[:(nz+1)*(nx+1)*NUM_VARS],tend[:nz*nx*NUM_VARS],sendbuf_l[:hs*nz*NUM_VARS],sendbuf_r[:hs*nz*NUM_VARS],recvbuf_l[:hs*nz*NUM_VARS],recvbuf_r[:hs*nz*NUM_VARS]) \
         map(alloc:flux[:(nz+1)*(nx+1)*NUM_VARS],tend[:nz*nx*NUM_VARS]) \
         map(tofrom:state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
 {
@@ -401,9 +400,8 @@ void set_halo_values_x( double *state ) {
   int k, ll, ind_r, ind_u, ind_t, i, s, ierr;
   double z;
 
-  //////////////////////////////////////////////////////
-  // DELETE THE SERIAL CODE BELOW AND REPLACE WITH MPI
-  //////////////////////////////////////////////////////
+  // MPI_Request req_r[2], req_s[2];
+  #pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) // nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + 0      ] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs-2];

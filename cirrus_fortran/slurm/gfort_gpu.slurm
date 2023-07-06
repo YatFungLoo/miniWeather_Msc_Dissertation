@@ -10,9 +10,13 @@
 #SBATCH --account=m22oc-s1754999
 
 # Load the required modules
-module load gcc/12.2.0-gpu-offload
+# module load gcc/12.2.0-gpu-offload
+module load gcc/8.2.0
+module load openmpi/4.1.4-cuda-11.8
+module load nvidia/nvhpc-nompi/22.11
+module switch -f gcc/12.2.0-gpu-offload
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/mnt/lustre/indy2lfs/sw/cuda/9.0/lib64
-export OMP_NUM_THREADS=2
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/mnt/lustre/indy2lfs/sw/cuda/9.0/lib64
+# export OMP_NUM_THREADS=1
 
 srun -n 1 ../openmp45_gcc12
