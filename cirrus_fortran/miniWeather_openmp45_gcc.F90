@@ -248,13 +248,11 @@ contains
     endif
 
     !Apply the tendencies to the fluid state
-    ! print *, "before target parellel"
     ! $omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid)
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
-          ! print *, "before target parellel"
           if (data_spec_int == DATA_SPEC_GRAVITY_WAVES) then
             x = (i_beg-1 + i-0.5_rp) * dx
             z = (k_beg-1 + k-0.5_rp) * dz
@@ -299,7 +297,7 @@ contains
     hv_coef = -hv_beta * dx / (16*dt)
     !Compute fluxes in the x-direction for each cell
     ! $omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
-    !$omp target teams distribute parallel do simd private(stencil,vals,d3_vals) depend(inout:asyncid)
+    !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
     do k = 1 , nz
       do i = 1 , nx+1
         !Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -330,7 +328,7 @@ contains
 
     !Use the fluxes to compute tendencies for each cell
     ! $omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid)
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
@@ -345,7 +343,7 @@ contains
   !Since the halos are set in a separate routine, this will not require MPI
   !First, compute the flux vector at each cell interface in the z-direction (including hyperviscosity)
   !Then, compute the tendencies using those fluxes
-  !the first parallel is causing problem
+  !the first parallel collapse is causing problem
   subroutine compute_tendencies_z(state,flux,tend,dt)
     implicit none
     real(rp), intent(in   ) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
@@ -358,7 +356,7 @@ contains
     hv_coef = -hv_beta * dz / (16*dt)
     !Compute fluxes in the x-direction for each cell
     ! $omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
-    !$omp target teams distribute parallel do simd private(stencil,vals,d3_vals) depend(inout:asyncid)
+    !$omp target teams distribute parallel do simd private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
     do k = 1 , nz+1
       do i = 1 , nx
         !Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -394,7 +392,7 @@ contains
 
     !Use the fluxes to compute tendencies for each cell
     ! $omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid)
+    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
@@ -418,7 +416,7 @@ contains
 
     ! if (nranks == 1) then
       ! $omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid) nowait
-      !$omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid)
+      !$omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid) nowait
       do ll = 1 , NUM_VARS
         do k = 1 , nz
           state(-1  ,k,ll) = state(nx-1,k,ll)
@@ -474,7 +472,7 @@ contains
     if (data_spec_int == DATA_SPEC_INJECTION) then
       if (myrank == 0) then
         ! $omp target teams distribute parallel do simd depend(inout:asyncid) nowait
-        !$omp target teams distribute parallel do simd depend(inout:asyncid)
+        !$omp target teams distribute parallel do simd depend(inout:asyncid) nowait
         do k = 1 , nz
           z = (k_beg-1 + k-0.5_rp)*dz
           if (abs(z-3*zlen/4) <= zlen/16) then
@@ -494,7 +492,7 @@ contains
     real(rp), intent(inout) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
     integer :: i, ll
     ! $omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid) nowait
-    !$omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid)
+    !$omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do i = 1-hs,nx+hs
         if (ll == ID_WMOM) then
