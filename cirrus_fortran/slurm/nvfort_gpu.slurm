@@ -13,4 +13,8 @@
 module load nvidia/nvhpc
 # export OMP_NUM_THREADS=2
 
-srun -n 1 ../openmp45_nvhpc
+EXEC=nvhpc_openacc_test
+# export OMP_NUM_THREADS=1
+
+echo EXEC_NAME: ${EXEC}
+srun -n 1 ../${EXEC}

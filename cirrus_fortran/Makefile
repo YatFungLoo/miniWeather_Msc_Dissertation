@@ -5,7 +5,8 @@ INPUT_FLAGS = -D_NX=200 -D_NZ=100 -D_SIM_TIME=100 -D_OUT_FREQ=1000 -D_DATA_SPEC=
 MW_SERIAL = miniWeather_serial_nompi.F90
 MW_OPENMP = miniWeather_openmp.F90
 MW_OPENACC = miniWeather_openacc.F90
-MW_OPENMP45 = miniWeather_openmp45.F90
+MW_OPENMP45_GCC = miniWeather_openmp45_gcc.F90
+MW_OPENMP45_NV = miniWeather_openmp45_nvhpc.F90
 MW_DOCONCURRENT = miniWeather_do_concurrent.F90
 MW_CUDA =
 
@@ -22,9 +23,9 @@ GCC_DOPENMP45_FLAGS = -fopenmp -foffload=nvptx-none="-lm -latomic"
 NV_FC = nvfortran
 NV_DFFLAGS = -O3 -Mvect -Mextend # -DNO_INFORM
 NV_DOPENMP_FLAGS = -mp # -Minfo=mp
-NV_DOPENACC_FLAGS = -acc # -Minfo=accel # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
-NV_DOPENMP45_FLAGS = -mp=gpu  gpu=cc70,fastmath,loadcache:L1,ptxinfo # -Minfo=mp
-NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore # -gpu=cc50,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
+NV_DOPENACC_FLAGS = -acc -gpu=cc70 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=accel
+NV_DOPENMP45_FLAGS = -mp=gpu -gpu=cc70 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=mp
+NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore -gpu=cc50 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
 
 # for correctness checking
 CHECK_OUTPUT_PATH = check_output.sh
@@ -45,7 +46,7 @@ gcc_openmp: ${MW_OPENMP}
 gcc_openacc: ${MW_OPENACC}
 	${GCC_FC} ${INPUT_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENACC_FLAGS} -o $@ $<
 
-gcc_openmp45: ${MW_OPENMP45}
+gcc_openmp45: ${MW_OPENMP45_GCC}
 	${GCC_FC} ${INPUT_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENMP45_FLAGS} -o $@ $<
 
 gcc_clean:
@@ -67,7 +68,7 @@ gcc_openacc_test: ${MW_OPENACC}
 	${GCC_FC} ${TEST_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENACC_FLAGS} -o $@ $<
 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
-gcc_openmp45_test: ${MW_OPENMP45}
+gcc_openmp45_test: ${MW_OPENMP45_GCC}
 	${GCC_FC} ${TEST_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENMP45_FLAGS} -o $@ $<
 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
@@ -87,7 +88,7 @@ nvhpc_openmp: ${MW_OPENMP}
 nvhpc_openacc: ${MW_OPENACC}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DOPENACC_FLAGS} -o $@ $<
 
-nvhpc_openmp45: ${MW_OPENMP45}
+nvhpc_openmp45: ${MW_OPENMP45_NV}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DOPENMP45_FLAGS} -o $@ $<
 
 nvhpc_do_concurrent: ${MW_DOCONCURRENT}
@@ -98,5 +99,33 @@ nvhpc_clean:
 
 ####################################################################################################
 
+nvhpc_test: nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test
+
+nvhpc_serial_test: ${MW_SERIAL}
+	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+nvhpc_openmp_test: ${MW_OPENMP}
+	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} ${NV_DOPENMP_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+nvhpc_openacc_test: ${MW_OPENACC}
+	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} ${NV_DOPENACC_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+nvhpc_openmp45_test: ${MW_OPENMP45_NV}
+	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} ${NV_DOPENMP45_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+nvhpc_do_concurrent_test: ${MW_DOCONCURRENT}
+	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} ${NV_DDO_CONCURRENT_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+nvhpc_clean_test:
+	rm -rf nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test
+
+####################################################################################################
+
 clean: gcc_clean nvhpc_clean
 
+clean_test: gcc_clean_test nvhpc_clean_test
