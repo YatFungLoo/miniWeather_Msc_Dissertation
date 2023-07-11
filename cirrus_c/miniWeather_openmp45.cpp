@@ -341,7 +341,8 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
   //Compute the hyperviscosity coefficient
   hv_coef = -hv_beta * dz / (16*dt);
   //Compute fluxes in the x-direction for each cell
-#pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) // nowait
+// #pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd private(stencil,vals,d3_vals) depend(inout:asyncid) // nowait
   for (k=0; k<nz+1; k++) {
     for (i=0; i<nx; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
