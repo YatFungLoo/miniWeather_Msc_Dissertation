@@ -113,10 +113,18 @@ program miniweather
   !Initialize MPI, allocate arrays, initialize the grid and the data
   call init(dt)
 
+  if (mainproc) write(*,*) 'sim_time:', sim_time
+
   !$omp parallel
   !$omp master
     print *, "num device", omp_get_num_devices()
     print *, "num threads", omp_get_num_threads()
+    ! print *, "Number of teams", omp_get_num_teams()
+    ! print *, "Size of the active team", omp_get_num_threads()
+    ! print *, "Get team number", omp_get_team_num()
+    ! print *, "Number of threads in a team", omp_get_team_size()
+    ! print *, "Maximum number of threads imposed by teams", omp_get_teams_thread_limit()
+    ! print *, "Maximum number of threads", omp_get_thread_limit()
   !$omp end master
   !$omp end parallel
 
@@ -142,7 +150,7 @@ program miniweather
     call perform_timestep(state,state_tmp,flux,tend,dt)
     !Inform the user
 #ifndef NO_INFORM
-    if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
+    ! if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
 #endif
     !Update the elapsed time and output counter
     etime = etime + dt
@@ -248,7 +256,6 @@ contains
     endif
 
     !Apply the tendencies to the fluid state
-    ! $omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
@@ -296,7 +303,6 @@ contains
     !Compute the hyperviscosity coefficient
     hv_coef = -hv_beta * dx / (16*dt)
     !Compute fluxes in the x-direction for each cell
-    ! $omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
     !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
     do k = 1 , nz
       do i = 1 , nx+1
@@ -327,7 +333,6 @@ contains
     enddo
 
     !Use the fluxes to compute tendencies for each cell
-    ! $omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
@@ -391,7 +396,6 @@ contains
     enddo
 
     !Use the fluxes to compute tendencies for each cell
-    ! $omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do k = 1 , nz
@@ -415,7 +419,6 @@ contains
     real(rp) :: z
 
     ! if (nranks == 1) then
-      ! $omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid) nowait
       !$omp target teams distribute parallel do simd collapse(2)  depend(inout:asyncid) nowait
       do ll = 1 , NUM_VARS
         do k = 1 , nz
@@ -471,7 +474,6 @@ contains
 
     if (data_spec_int == DATA_SPEC_INJECTION) then
       if (myrank == 0) then
-        ! $omp target teams distribute parallel do simd depend(inout:asyncid) nowait
         !$omp target teams distribute parallel do simd depend(inout:asyncid) nowait
         do k = 1 , nz
           z = (k_beg-1 + k-0.5_rp)*dz
@@ -491,7 +493,6 @@ contains
     implicit none
     real(rp), intent(inout) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
     integer :: i, ll
-    ! $omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid) nowait
     !$omp target teams distribute parallel do simd collapse(2) depend(inout:asyncid) nowait
     do ll = 1 , NUM_VARS
       do i = 1-hs,nx+hs
