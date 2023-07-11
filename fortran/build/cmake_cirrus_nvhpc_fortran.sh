@@ -11,6 +11,7 @@ module load epcc/setup-env
 # load nvidia compilers
 module load openmpi/4.1.4-cuda-11.8
 module load nvidia/nvhpc-nompi/22.11
+module load cmake
 
 PARALLEL_NETCDF=/work/m22oc/m22oc/s1754999/Project/PnetCDF_install
 export PATH=$PATH:$PARALLEL_NETCDF
