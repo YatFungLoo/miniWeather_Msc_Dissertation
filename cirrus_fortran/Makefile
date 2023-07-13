@@ -1,5 +1,5 @@
 # input flags
-INPUT_FLAGS = -D_NX=400 -D_NZ=200 -D_SIM_TIME=10000 -D_OUT_FREQ=10000 -D_DATA_SPEC=DATA_SPEC_THERMAL
+INPUT_FLAGS = -D_NX=100 -D_NZ=50 -D_SIM_TIME=100 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
 
 # file names
 MW_SERIAL = miniWeather_serial_nompi.F90
@@ -8,7 +8,7 @@ MW_OPENACC = miniWeather_openacc.F90
 MW_OPENMP45_GCC = miniWeather_openmp45_gcc.F90
 MW_OPENMP45_NV = miniWeather_openmp45_nvhpc.F90
 MW_DOCONCURRENT = miniWeather_do_concurrent.F90
-MW_CUDA =
+MW_CUDA = miniWeather_cuda.F90
 
 ####################################################################################################
 
@@ -24,9 +24,10 @@ GCC_DDO_CONCURRENT_FLAGS = -ffrontend-loop-interchange
 NV_FC = nvfortran
 NV_DFFLAGS = -O3 -g -Mvect -Mextend # -DNO_INFORM
 NV_DOPENMP_FLAGS = -mp # -Minfo=mp
-NV_DOPENACC_FLAGS = -acc # -gpu=cc70,fastmath,loadcache:L1,ptxinfo # -Minfo=accel
-NV_DOPENMP45_FLAGS = -mp=gpu # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
+NV_DOPENACC_FLAGS = -acc -Minfo=accel # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
+NV_DOPENMP44_FLAGS = -mp=gpu # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
 NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore -gpu=cc50 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
+NV_DCUDA_FLAGS = -Mcuda #-arch=sm_70
 
 # for correctness checking
 CHECK_OUTPUT_PATH = check_output.sh
@@ -81,7 +82,7 @@ gcc_clean_test:
 
 ####################################################################################################
 
-nvhpc: nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent
+nvhpc: nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent nvhpc_cuda
 
 nvhpc_serial: ${MW_SERIAL}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} -o $@ $<
@@ -98,8 +99,11 @@ nvhpc_openmp45: ${MW_OPENMP45_NV}
 nvhpc_do_concurrent: ${MW_DOCONCURRENT}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DDO_CONCURRENT_FLAGS} -o $@ $<
 
+nvhpc_cuda: ${MW_CUDA}
+	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DCUDA_FLAGS} -o $@ $<
+
 nvhpc_clean:
-	rm -rf nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent
+	rm -rf nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent nvhpc_cuda
 
 ####################################################################################################
 
