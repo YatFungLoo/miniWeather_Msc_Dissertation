@@ -8,7 +8,7 @@ MW_OPENACC = miniWeather_openacc.F90
 MW_OPENMP45_GCC = miniWeather_openmp45_gcc.F90
 MW_OPENMP45_NV = miniWeather_openmp45_nvhpc.F90
 MW_DOCONCURRENT = miniWeather_do_concurrent.F90
-MW_CUDA = miniWeather_cuda.F90
+MW_CUDA = miniWeather_cuda.CUF
 
 ####################################################################################################
 
@@ -25,9 +25,9 @@ NV_FC = nvfortran
 NV_DFFLAGS = -O3 -g -Mvect -Mextend # -DNO_INFORM
 NV_DOPENMP_FLAGS = -mp # -Minfo=mp
 NV_DOPENACC_FLAGS = -acc -Minfo=accel # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
-NV_DOPENMP44_FLAGS = -mp=gpu # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
+NV_DOPENMP45_FLAGS = -mp=gpu # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
 NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore -gpu=cc50 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
-NV_DCUDA_FLAGS = -Mcuda #-arch=sm_70
+NV_DCUDA_FLAGS = #-Mcuda #-arch=sm_70
 
 # for correctness checking
 CHECK_OUTPUT_PATH = check_output.sh
@@ -99,7 +99,7 @@ nvhpc_openmp45: ${MW_OPENMP45_NV}
 nvhpc_do_concurrent: ${MW_DOCONCURRENT}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DDO_CONCURRENT_FLAGS} -o $@ $<
 
-nvhpc_cuda: ${MW_CUDA}
+cuda: ${MW_CUDA}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DCUDA_FLAGS} -o $@ $<
 
 nvhpc_clean:
