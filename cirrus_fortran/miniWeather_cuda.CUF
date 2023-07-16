@@ -7,58 +7,58 @@
 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    ! real(rp) :: state_out    (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-    ! real(rp) :: state_init   (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-
-        ! real(rp), device :: state_init_d (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-        ! real(rp), device :: state_out_d  (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-        ! real(rp), device :: tend_d       (nx,nz,NUM_VARS)
-
 module kernels_m
 ! tmp double precision holder; Q: how to have the same rp in another module?
 integer , parameter :: rp_d = selected_real_kind(15)
 real(rp_d), parameter :: C0_d        = 27.5629410929725921310572974482_rp_d   !Constant to translate potential temperature into pressure (P=C0*(rho*theta)**gamma)
 real(rp_d), parameter :: gamma_d     = 1.40027894002789400278940027894_rp_d   !gamma=cp/Rd
+integer , parameter :: NUM_VARS_d = 4           !Number of fluid state variables
+integer , parameter :: ID_DENS_d  = 1           !index for density ("rho")
+integer , parameter :: ID_UMOM_d  = 2           !index for momentum in the x-direction ("rho * u")
+integer , parameter :: ID_WMOM_d  = 3           !index for momentum in the z-direction ("rho * w")
+integer , parameter :: ID_RHOT_d  = 4           !index for density * potential temperature ("rho * theta")
 
 contains
-
-  attributes(global) subroutine semi_disc(state_init, state_out, dt, tend, NUM_VARS, nz, nx, hs)
+  attributes(global) subroutine init_d()
     implicit none
-    real(rp_d), intent(in   )   :: state_init  (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-    real(rp_d), intent(  out)   :: state_out   (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-    real(rp_d), intent(  out)   :: tend        (nx,nz,NUM_VARS)
+  end subroutine init_d
+
+  attributes(global) subroutine semi_discrete_step_d(state_init, state_out, dt, tend, nz, nx, hs)
+    implicit none
+    real(rp_d), intent(in   )   :: state_init  (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS_d)
+    real(rp_d), intent(  out)   :: state_out   (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS_d)
+    real(rp_d), intent(  out)   :: tend        (nx,nz,NUM_VARS_d)
     real(rp_d), value           :: dt
-    integer   , value           :: NUM_VARS, nz, nx, hs
+    integer   , value           :: nz, nx, hs
     integer                     :: i, ll, k, n
 
-    do ll = 1 , NUM_VARS
+    do ll = 1 , NUM_VARS_d
       do k = 1 , nz
         do i = 1 , nx
           state_out(i,k,ll) = state_init(i,k,ll) + dt * tend(i,k,ll)
         enddo
       enddo
     enddo
-  end subroutine semi_disc
+  end subroutine semi_discrete_step_d
 
   attributes(global) subroutine compute_tendencies_x_d(state, flux, hy_dens_cell, hy_dens_theta_cell, &
-                                                       ID_DENS, ID_UMOM, ID_WMOM, ID_RHOT, NUM_VARS, &
-                                                       sten_size, hv_coef, nz, nx, hs)
+                                                      sten_size, hv_coef, nz, nx, hs)
     implicit none
-    real(rp_d), intent(in   ) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-    real(rp_d), intent(  out) :: flux (nx+1,nz+1,NUM_VARS)
-    real(rp_d) :: hy_dens_cell      (:)  !hydrostatic density (vert cell avgs).   Dimensions: (1-hs:nz+hs)
-    real(rp_d) :: hy_dens_theta_cell(:) 
+    real(rp_d), intent(in   ) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS_d)
+    real(rp_d), intent(  out) :: flux (nx+1,nz+1,NUM_VARS_d)
+    real(rp_d) :: hy_dens_cell      (1-hs:nz+hs)  !hydrostatic density (vert cell avgs).   Dimensions: (1-hs:nz+hs)
+    real(rp_d) :: hy_dens_theta_cell(1-hs:nz+hs)
 
-    integer   , value :: ID_DENS, ID_UMOM, ID_WMOM, ID_RHOT, NUM_VARS, sten_size, nz, nx, hs
+    integer   , value :: sten_size, nz, nx, hs
     real(rp_d), value :: hv_coef
 
     integer           :: i, k, ll, s
-    real(rp_d)        :: r, u, w, t, p, stencil(4), d3_vals(NUM_VARS), vals(NUM_VARS)
+    real(rp_d)        :: r, u, w, t, p, stencil(4), d3_vals(NUM_VARS_d), vals(NUM_VARS_d)
 
     do k = 1 , nz
       do i = 1 , nx+1
         !Use fourth-order interpolation from four cell averages to compute the value at the interface in question
-        do ll = 1 , NUM_VARS
+        do ll = 1 , NUM_VARS_d
           do s = 1 , sten_size
             stencil(s) = state(i-hs-1+s,k,ll)
           enddo
@@ -69,42 +69,59 @@ contains
         enddo
 
         !Compute density, u-wind, w-wind, potential temperature, and pressure (r,u,w,t,p respectively)
-        r = vals(ID_DENS) + hy_dens_cell(k)
-        u = vals(ID_UMOM) / r
-        w = vals(ID_WMOM) / r
-        t = ( vals(ID_RHOT) + hy_dens_theta_cell(k) ) / r
+        r = vals(ID_DENS_d) + hy_dens_cell(k)
+        u = vals(ID_UMOM_d) / r
+        w = vals(ID_WMOM_d) / r
+        t = ( vals(ID_RHOT_d) + hy_dens_theta_cell(k) ) / r
         p = C0_d*(r*t)**gamma_d
 
         !Compute the flux vector
-        flux(i,k,ID_DENS) = r*u     - hv_coef*d3_vals(ID_DENS)
-        flux(i,k,ID_UMOM) = r*u*u+p - hv_coef*d3_vals(ID_UMOM)
-        flux(i,k,ID_WMOM) = r*u*w   - hv_coef*d3_vals(ID_WMOM)
-        flux(i,k,ID_RHOT) = r*u*t   - hv_coef*d3_vals(ID_RHOT)
+        flux(i,k,ID_DENS_d) = r*u     - hv_coef*d3_vals(ID_DENS_d)
+        flux(i,k,ID_UMOM_d) = r*u*u+p - hv_coef*d3_vals(ID_UMOM_d)
+        flux(i,k,ID_WMOM_d) = r*u*w   - hv_coef*d3_vals(ID_WMOM_d)
+        flux(i,k,ID_RHOT_d) = r*u*t   - hv_coef*d3_vals(ID_RHOT_d)
       enddo
     enddo
 
   end subroutine compute_tendencies_x_d
 
-  attributes(global) subroutine compute_tendencies_z_d(state, flux, hy_dens_int, hy_dens_theta_int, &
-                                                       hy_pressure_int, ID_DENS, ID_UMOM, ID_WMOM, ID_RHOT, &
-                                                       NUM_VARS, sten_size, hv_coef, nz, nx, hs)
-  implicit none
-  real(rp_d), intent(in   ) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-  real(rp_d), intent(  out) :: flux (nx+1,nz+1,NUM_VARS)
-  real(rp_d) :: hy_dens_int       (:)  !hydrostatic density (vert cell interf). Dimensions: (1:nz+1)
-  real(rp_d) :: hy_dens_theta_int (:)  !hydrostatic rho*t (vert cell interf).   Dimensions: (1:nz+1)
-  real(rp_d) :: hy_pressure_int   (:)  !hydrostatic press (vert cell interf).   Dimensions: (1:nz+
+  attributes(global) subroutine compute_tendencies_x_tend_d(tend, flux, nz, nx, dx)
+    implicit none
+    real(rp_d), intent(  out) :: tend (nx,nz,NUM_VARS_d)
+    real(rp_d), intent(in   ) :: flux (nx+1,nz+1,NUM_VARS_d)
+    integer :: nz, nx
+    real(rp_d), value :: dx
+    integer           :: i, k, ll
 
-  integer   , value :: ID_DENS, ID_UMOM, ID_WMOM, ID_RHOT, NUM_VARS, sten_size, nz, nx, hs
+    do ll = 1 , NUM_VARS_d
+      do k = 1 , nz
+        do i = 1 , nx
+          tend(i,k,ll) = -( flux(i+1,k,ll) - flux(i,k,ll) ) / dx
+        enddo
+      enddo
+    enddo
+
+  end subroutine compute_tendencies_x_tend_d
+
+  attributes(global) subroutine compute_tendencies_z_d(state, flux, hy_dens_int, hy_dens_theta_int, &
+                                                       hy_pressure_int, sten_size, hv_coef, nz, nx, hs)
+  implicit none
+  real(rp_d), intent(in   ) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS_d)
+  real(rp_d), intent(  out) :: flux (nx+1,nz+1,NUM_VARS_d)
+  real(rp_d) :: hy_dens_int       (1:nz+1)  !hydrostatic density (vert cell interf). Dimensions: (1:nz+1)
+  real(rp_d) :: hy_dens_theta_int (1:nz+1)  !hydrostatic rho*t (vert cell interf).   Dimensions: (1:nz+1)
+  real(rp_d) :: hy_pressure_int   (1:nz+1)  !hydrostatic press (vert cell interf).   Dimensions: (1:nz+1)
+
+  integer   , value :: sten_size, nz, nx, hs
   real(rp_d), value :: hv_coef
 
   integer           :: i, k, ll, s
-  real(rp_d)        :: r, u, w, t, p, stencil(4), d3_vals(NUM_VARS), vals(NUM_VARS)
+  real(rp_d)        :: r, u, w, t, p, stencil(4), d3_vals(NUM_VARS_d), vals(NUM_VARS_d)
 
   do k = 1 , nz+1
     do i = 1 , nx
       !Use fourth-order interpolation from four cell averages to compute the value at the interface in question
-      do ll = 1 , NUM_VARS
+      do ll = 1 , NUM_VARS_d
         do s = 1 , sten_size
           stencil(s) = state(i,k-hs-1+s,ll)
         enddo
@@ -115,22 +132,22 @@ contains
       enddo
 
       !Compute density, u-wind, w-wind, potential temperature, and pressure (r,u,w,t,p respectively)
-      r = vals(ID_DENS) + hy_dens_int(k)
-      u = vals(ID_UMOM) / r
-      w = vals(ID_WMOM) / r
-      t = ( vals(ID_RHOT) + hy_dens_theta_int(k) ) / r
+      r = vals(ID_DENS_d) + hy_dens_int(k)
+      u = vals(ID_UMOM_d) / r
+      w = vals(ID_WMOM_d) / r
+      t = ( vals(ID_RHOT_d) + hy_dens_theta_int(k) ) / r
       p = C0_d*(r*t)**gamma_d - hy_pressure_int(k)
       !Enforce vertical boundary condition and exact mass conservation
       if (k == 1 .or. k == nz+1) then
         w                = 0
-        d3_vals(ID_DENS) = 0
+        d3_vals(ID_DENS_d) = 0
       endif
 
       !Compute the flux vector with hyperviscosity
-      flux(i,k,ID_DENS) = r*w     - hv_coef*d3_vals(ID_DENS)
-      flux(i,k,ID_UMOM) = r*w*u   - hv_coef*d3_vals(ID_UMOM)
-      flux(i,k,ID_WMOM) = r*w*w+p - hv_coef*d3_vals(ID_WMOM)
-      flux(i,k,ID_RHOT) = r*w*t   - hv_coef*d3_vals(ID_RHOT)
+      flux(i,k,ID_DENS_d) = r*w     - hv_coef*d3_vals(ID_DENS_d)
+      flux(i,k,ID_UMOM_d) = r*w*u   - hv_coef*d3_vals(ID_UMOM_d)
+      flux(i,k,ID_WMOM_d) = r*w*w+p - hv_coef*d3_vals(ID_WMOM_d)
+      flux(i,k,ID_RHOT_d) = r*w*t   - hv_coef*d3_vals(ID_RHOT_d)
     enddo
   enddo
 
@@ -229,14 +246,28 @@ program miniweather
   real(rp), allocatable :: flux     (:,:,:)     !Cell interface fluxes.                  Dimensions: (nx+1,nz+1,NUM_VARS)
   real(rp), allocatable :: tend     (:,:,:)     !Fluid state tendencies.                 Dimensions: (nx,nz,NUM_VARS)
   integer(8) :: t1, t2, rate                    !For CPU Timings
-  real(rp) :: mass0, te0                        !Initial domain totals for mass and total energy  
-  real(rp) :: mass ,te                          !Domain totals for mass and total energy  
+  real(rp) :: mass0, te0                        !Initial domain totals for mass and total energy
+  real(rp) :: mass ,te                          !Domain totals for mass and total energy
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Variables for CUDA
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  real(rp), device, allocatable :: state_d    (:,:,:)     !Fluid state.                            Dimensions: (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
+  real(rp), device, allocatable :: state_tmp_d(:,:,:)     !Fluid state.                            Dimensions: (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
+  real(rp), device, allocatable :: flux_d     (:,:,:)     !Cell interface fluxes.                  Dimensions: (nx+1,nz+1,NUM_VARS)
+  real(rp), device, allocatable :: tend_d     (:,:,:)     !Fluid state tendencies.                 Dimensions: (nx,nz,NUM_VARS)
+
+  real(rp), device, allocatable :: hy_dens_cell_d      (:)  !hydrostatic density (vert cell avgs).   Dimensions: (1-hs:nz+hs)
+  real(rp), device, allocatable :: hy_dens_theta_cell_d(:)  !hydrostatic rho*t (vert cell avgs).     Dimensions: (1-hs:nz+hs)
+  real(rp), device, allocatable :: hy_dens_int_d       (:)  !hydrostatic density (vert cell interf). Dimensions: (1:nz+1)
+  real(rp), device, allocatable :: hy_dens_theta_int_d (:)  !hydrostatic rho*t (vert cell interf).   Dimensions: (1:nz+1)
+  real(rp), device, allocatable :: hy_pressure_int_d   (:)  !hydrostatic press (vert cell interf).   Dimensions: (1:nz+1)
+
+  integer, device :: nz_d, nx_d
+
   integer :: i, istat, nDevices
   type (cudaDeviceProp) :: prop
+  type (dim3)           :: grid, tBlock
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! THE MAIN PROGRAM STARTS HERE
@@ -402,8 +433,8 @@ contains
     state_out_d = state_out
     tend_d = tend
 
-    !launch kernal_m semi_disc subroutine
-    call semi_disc<<<grid, tBlock>>>(state_init_d, state_out_d, dt, tend_d, NUM_VARS, nz, nx, hs)
+    !launch kernal_m semi_discrete_step_d subroutine
+    call semi_discrete_step_d<<<grid, tBlock>>>(state_init_d, state_out_d, dt, tend_d, nz, nx, hs)
 
     ! do ll = 1 , NUM_VARS
     !   do k = 1 , nz
@@ -434,15 +465,6 @@ contains
     integer :: i,k,ll,s
     real(rp) :: r,u,w,t,p, stencil(4), d3_vals(NUM_VARS), vals(NUM_VARS), hv_coef
 
-    !cuda variable
-    real(rp), device :: state_d (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
-    real(rp), device :: flux_d (nx+1,nz+1,NUM_VARS)
-    real(rp), device :: tend_d (nx,nz,NUM_VARS)
-    real(rp), device, allocatable :: hy_dens_cell_d      (:)  !hydrostatic density (vert cell avgs).   Dimensions: (1-hs:nz+hs)
-    real(rp), device, allocatable :: hy_dens_theta_cell_d(:)  !hydrostatic rho*t (vert cell avgs).     Dimensions: (1-hs:nz+hs)
-  
-    type(dim3) :: grid, tBlock
-
     !Compute the hyperviscosity coefficient
     hv_coef = -hv_beta * dx / (16*dt)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -462,11 +484,10 @@ contains
     hy_dens_theta_cell_d =hy_dens_theta_cell
 
     call compute_tendencies_x_d<<<grid, tBlock>>>(state_d, flux_d, hy_dens_cell_d, hy_dens_theta_cell_d, &
-                                                  ID_DENS, ID_UMOM, ID_WMOM, ID_RHOT, NUM_VARS, &
                                                   sten_size, hv_coef, nz, nx, hs)
 
     !device-to-host transfer
-    flux = flux_d
+    ! flux = flux_d
 
     ! do k = 1 , nz
     !   do i = 1 , nx+1
@@ -487,7 +508,7 @@ contains
     !     w = vals(ID_WMOM) / r
     !     t = ( vals(ID_RHOT) + hy_dens_theta_cell(k) ) / r
     !     p = C0*(r*t)**gamma
-    
+
     !     !Compute the flux vector
     !     flux(i,k,ID_DENS) = r*u     - hv_coef*d3_vals(ID_DENS)
     !     flux(i,k,ID_UMOM) = r*u*u+p - hv_coef*d3_vals(ID_UMOM)
@@ -500,13 +521,27 @@ contains
     !! TODO: THREAD ME
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Use the fluxes to compute tendencies for each cell
-    do ll = 1 , NUM_VARS
-      do k = 1 , nz
-        do i = 1 , nx
-          tend(i,k,ll) = -( flux(i+1,k,ll) - flux(i,k,ll) ) / dx
-        enddo
-      enddo
-    enddo
+
+    !host-to-device transfer
+    tend_d = tend
+    nz_d = nz
+    nx_d = nx
+    ! flux_d = flux
+
+    call compute_tendencies_x_tend_d<<<grid, tBlock>>>(tend_d, flux_d, nz_d, nx_d, dx)
+
+    !device-to-host transfer
+    tend = tend_d
+    flux = flux_d
+
+    ! do ll = 1 , NUM_VARS
+    !   do k = 1 , nz
+    !     do i = 1 , nx
+    !       tend(i,k,ll) = -( flux(i+1,k,ll) - flux(i,k,ll) ) / dx
+    !     enddo
+    !   enddo
+    ! enddo
+
   end subroutine compute_tendencies_x
 
 
@@ -530,7 +565,7 @@ contains
     real(rp), device, allocatable :: hy_dens_int_d       (:)  !hydrostatic density (vert cell interf). Dimensions: (1:nz+1)
     real(rp), device, allocatable :: hy_dens_theta_int_d (:)  !hydrostatic rho*t (vert cell interf).   Dimensions: (1:nz+1)
     real(rp), device, allocatable :: hy_pressure_int_d   (:)  !hydrostatic press (vert cell interf).   Dimensions: (1:nz+1)
-  
+
     type(dim3) :: grid, tBlock
 
     !Compute the hyperviscosity coefficient
@@ -545,7 +580,7 @@ contains
     ! grid = dim3(ceiling(real(NUM_VARS)/tBlock%x),1,1)
     grid = dim3(1,1,1)
 
-    !host-to-device transfer
+    ! host-to-device transfer
     state_d = state
     flux_d = flux
     hy_dens_int_d = hy_dens_int
@@ -553,10 +588,9 @@ contains
     hy_pressure_int_d = hy_pressure_int
 
     call compute_tendencies_z_d<<<grid, tBlock>>>(state_d, flux_d, hy_dens_int_d, hy_dens_theta_int_d, &
-                                                  hy_pressure_int_d, ID_DENS, ID_UMOM, ID_WMOM, ID_RHOT, &
-                                                  NUM_VARS, sten_size, hv_coef, nz, nx, hs)
+                                                  hy_pressure_int_d, sten_size, hv_coef, nz, nx, hs)
 
-    !device-to-host transfer
+    ! !device-to-host transfer
     flux = flux_d
 
     ! do k = 1 , nz+1
