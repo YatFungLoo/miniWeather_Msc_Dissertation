@@ -177,6 +177,55 @@ contains
 
   end subroutine compute_tendencies_z_tend_d
 
+  attributes(global) subroutine set_halo_values_x_d(state, nz, nx, hs)
+    implicit none
+    real(rp_d), intent(inout) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS_d)
+
+    integer, value :: nz, nx, hs
+    integer    :: k, ll
+
+    do ll = 1 , NUM_VARS_d
+      do k = 1 , nz
+        state(-1  ,k,ll) = state(nx-1,k,ll)
+        state(0   ,k,ll) = state(nx  ,k,ll)
+        state(nx+1,k,ll) = state(1   ,k,ll)
+        state(nx+2,k,ll) = state(2   ,k,ll)
+      enddo
+    enddo
+
+  end subroutine set_halo_values_x_d
+
+  attributes(global) subroutine set_halo_values_z_d(state, hy_dens_cell, nz, nx, hs)
+    implicit none
+    real(rp_d), intent(inout) :: state(1-hs:nx+hs,1-hs:nz+hs,NUM_VARS_d)
+    real(rp_d) :: hy_dens_cell      (1-hs:nz+hs)
+
+    integer, value :: nz, nx, hs
+    integer    :: i, ll
+
+    do ll = 1 , NUM_VARS_d
+      do i = 1-hs,nx+hs
+        if (ll == ID_WMOM_d) then
+          state(i,-1  ,ll) = 0
+          state(i,0   ,ll) = 0
+          state(i,nz+1,ll) = 0
+          state(i,nz+2,ll) = 0
+        else if (ll == ID_UMOM_d) then
+          state(i,-1  ,ll) = state(i,1 ,ll) / hy_dens_cell( 1) * hy_dens_cell(-1  )
+          state(i,0   ,ll) = state(i,1 ,ll) / hy_dens_cell( 1) * hy_dens_cell( 0  )
+          state(i,nz+1,ll) = state(i,nz,ll) / hy_dens_cell(nz) * hy_dens_cell(nz+1)
+          state(i,nz+2,ll) = state(i,nz,ll) / hy_dens_cell(nz) * hy_dens_cell(nz+2)
+        else
+          state(i,-1  ,ll) = state(i,1 ,ll)
+          state(i,0   ,ll) = state(i,1 ,ll)
+          state(i,nz+1,ll) = state(i,nz,ll)
+          state(i,nz+2,ll) = state(i,nz,ll)
+        endif
+      enddo
+    enddo
+
+  end subroutine set_halo_values_z_d
+
 end module kernels_m
 
 program miniweather
@@ -691,14 +740,24 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !! DELETE THE SERIAL CODE BELOW AND REPLACE WITH MPI
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    do ll = 1 , NUM_VARS
-      do k = 1 , nz
-        state(-1  ,k,ll) = state(nx-1,k,ll)
-        state(0   ,k,ll) = state(nx  ,k,ll)
-        state(nx+1,k,ll) = state(1   ,k,ll)
-        state(nx+2,k,ll) = state(2   ,k,ll)
-      enddo
-    enddo
+    tBlock = dim3(256,1,1)
+    grid = dim3(1,1,1)
+
+    ! host-to-device transfer
+    state_d = state
+
+    call set_halo_values_x_d<<<grid, tBlock>>>(state_d, nz, nx, hs)
+
+    state = state_d
+
+    ! do ll = 1 , NUM_VARS
+    !   do k = 1 , nz
+    !     state(-1  ,k,ll) = state(nx-1,k,ll)
+    !     state(0   ,k,ll) = state(nx  ,k,ll)
+    !     state(nx+1,k,ll) = state(1   ,k,ll)
+    !     state(nx+2,k,ll) = state(2   ,k,ll)
+    !   enddo
+    ! enddo
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     if (data_spec_int == DATA_SPEC_INJECTION) then
@@ -715,6 +774,7 @@ contains
         enddo
       endif
     endif
+
   end subroutine set_halo_values_x
 
 
@@ -729,26 +789,37 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !! TODO: THREAD ME
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    do ll = 1 , NUM_VARS
-      do i = 1-hs,nx+hs
-        if (ll == ID_WMOM) then
-          state(i,-1  ,ll) = 0
-          state(i,0   ,ll) = 0
-          state(i,nz+1,ll) = 0
-          state(i,nz+2,ll) = 0
-        else if (ll == ID_UMOM) then
-          state(i,-1  ,ll) = state(i,1 ,ll) / hy_dens_cell( 1) * hy_dens_cell(-1  )
-          state(i,0   ,ll) = state(i,1 ,ll) / hy_dens_cell( 1) * hy_dens_cell( 0  )
-          state(i,nz+1,ll) = state(i,nz,ll) / hy_dens_cell(nz) * hy_dens_cell(nz+1)
-          state(i,nz+2,ll) = state(i,nz,ll) / hy_dens_cell(nz) * hy_dens_cell(nz+2)
-        else
-          state(i,-1  ,ll) = state(i,1 ,ll)
-          state(i,0   ,ll) = state(i,1 ,ll)
-          state(i,nz+1,ll) = state(i,nz,ll)
-          state(i,nz+2,ll) = state(i,nz,ll)
-        endif
-      enddo
-    enddo
+    tBlock = dim3(256,1,1)
+    grid = dim3(1,1,1)
+
+    ! host-to-device transfer
+    state_d = state
+    hy_dens_cell_d = hy_dens_cell
+
+    call set_halo_values_z_d<<<grid, tBlock>>>(state_d, hy_dens_cell_d, nz, nx, hs)
+
+    state = state_d
+
+    ! do ll = 1 , NUM_VARS
+    !   do i = 1-hs,nx+hs
+    !     if (ll == ID_WMOM) then
+    !       state(i,-1  ,ll) = 0
+    !       state(i,0   ,ll) = 0
+    !       state(i,nz+1,ll) = 0
+    !       state(i,nz+2,ll) = 0
+    !     else if (ll == ID_UMOM) then
+    !       state(i,-1  ,ll) = state(i,1 ,ll) / hy_dens_cell( 1) * hy_dens_cell(-1  )
+    !       state(i,0   ,ll) = state(i,1 ,ll) / hy_dens_cell( 1) * hy_dens_cell( 0  )
+    !       state(i,nz+1,ll) = state(i,nz,ll) / hy_dens_cell(nz) * hy_dens_cell(nz+1)
+    !       state(i,nz+2,ll) = state(i,nz,ll) / hy_dens_cell(nz) * hy_dens_cell(nz+2)
+    !     else
+    !       state(i,-1  ,ll) = state(i,1 ,ll)
+    !       state(i,0   ,ll) = state(i,1 ,ll)
+    !       state(i,nz+1,ll) = state(i,nz,ll)
+    !       state(i,nz+2,ll) = state(i,nz,ll)
+    !     endif
+    !   enddo
+    ! enddo
   end subroutine set_halo_values_z
 
 
