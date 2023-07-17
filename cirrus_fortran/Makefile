@@ -82,7 +82,7 @@ gcc_clean_test:
 
 ####################################################################################################
 
-nvhpc: nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent nvhpc_cuda
+nvhpc: nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent cuda
 
 nvhpc_serial: ${MW_SERIAL}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} -o $@ $<
@@ -103,11 +103,11 @@ cuda: ${MW_CUDA}
 	${NV_FC} ${INPUT_FLAGS} ${NV_DFFLAGS} ${NV_DCUDA_FLAGS} -o $@ $<
 
 nvhpc_clean:
-	rm -rf nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent nvhpc_cuda
+	rm -rf nvhpc_serial nvhpc_openmp nvhpc_openacc nvhpc_openmp45 nvhpc_do_concurrent cuda
 
 ####################################################################################################
 
-nvhpc_test: nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test
+nvhpc_test: nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test cuda_test
 
 nvhpc_serial_test: ${MW_SERIAL}
 	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} -o $@ $<
@@ -129,8 +129,12 @@ nvhpc_do_concurrent_test: ${MW_DOCONCURRENT}
 	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} ${NV_DDO_CONCURRENT_FLAGS} -o $@ $<
 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
+cuda_test: ${MW_CUDA}
+	${NV_FC} ${TEST_FLAGS} ${NV_DFFLAGS} ${NV_DCUDA_FLAGS} -o $@ $<
+#	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
 nvhpc_clean_test:
-	rm -rf nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test
+	rm -rf nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test cuda_test
 
 ####################################################################################################
 
