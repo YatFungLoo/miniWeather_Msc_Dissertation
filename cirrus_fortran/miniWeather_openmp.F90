@@ -115,6 +115,10 @@ program miniweather
     print *, "num threads", omp_get_num_threads()
   !$omp end master
   !$omp end parallel
+
+  !inform the user
+  if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
+
   !Initial reductions for mass, kinetic energy, and total energy
   call reductions(mass0,te0)
 
@@ -132,7 +136,7 @@ program miniweather
     call perform_timestep(state,state_tmp,flux,tend,dt)
     !Inform the user
 #ifndef NO_INFORM
-    if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
+    ! if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
 #endif
     !Update the elapsed time and output counter
     etime = etime + dt

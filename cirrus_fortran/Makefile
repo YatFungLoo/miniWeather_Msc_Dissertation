@@ -1,5 +1,6 @@
 # input flags
-INPUT_FLAGS = -D_NX=100 -D_NZ=50 -D_SIM_TIME=100 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
+# INPUT_FLAGS = -D_NX=750 -D_NZ=375 -D_SIM_TIME=1000 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
+INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=2 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
 
 # file names
 MW_SERIAL = miniWeather_serial_nompi.F90
@@ -7,6 +8,7 @@ MW_OPENMP = miniWeather_openmp.F90
 MW_OPENACC = miniWeather_openacc.F90
 MW_OPENMP45_GCC = miniWeather_openmp45_gcc.F90
 MW_OPENMP45_NV = miniWeather_openmp45_nvhpc.F90
+MW_OPENMP45_ICC = miniWeather_openmp45_nvhpc.F90
 MW_DOCONCURRENT = miniWeather_do_concurrent.F90
 MW_CUDA = miniWeather_cuda.CUF
 
@@ -16,18 +18,26 @@ MW_CUDA = miniWeather_cuda.CUF
 GCC_FC = gfortran
 GCC_DFFLAGS = -O3 -g -ffree-line-length-none
 GCC_DOPENMP_FLAGS = -fopenmp # -fopt-info
-GCC_DOPENACC_FLAGS = -fopenacc -foffload="-lm -latomic"
+GCC_DOPENACC_FLAGS = -fopenacc -foffload="-lm -latomic -lgfortran"
 GCC_DOPENMP45_FLAGS = -fopenmp -foffload="-lm -latomic"
-GCC_DDO_CONCURRENT_FLAGS = -ffrontend-loop-interchange
+GCC_DDO_CONCURRENT_FLAGS = -ftree-parallelize-loops=2
 
 # nvfortran compiler flags
 NV_FC = nvfortran
 NV_DFFLAGS = -O3 -g -Mvect -Mextend # -DNO_INFORM
 NV_DOPENMP_FLAGS = -mp # -Minfo=mp
-NV_DOPENACC_FLAGS = -acc -Minfo=accel # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
-NV_DOPENMP45_FLAGS = -mp=gpu # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
-NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore -gpu=cc50 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
+NV_DOPENACC_FLAGS = -acc # -Minfo=accel # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
+NV_DOPENMP45_FLAGS = -mp=gpu  # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
+NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore # -gpu=cc50 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
 NV_DCUDA_FLAGS = #-Mcuda #-arch=sm_70
+
+# intel compiler flags (work in progress)
+ICC_FC = ifx
+ICC_DFFLAGS = -Ofast -fast-transcendentals -fp-model=fast=2 -xHost # -DNO_INFORM
+ICC_DOPENMP_FLAGS = -qopenmp
+# ICC_DOPENACC_FLAGS = not supported
+ICC_DOPENMP45_FLAGS = -fiopenmp
+# ICC_DDO_CONCURRENT_FLAGS = -ffrontend-loop-interchange
 
 # for correctness checking
 CHECK_OUTPUT_PATH = check_output.sh
@@ -135,6 +145,28 @@ cuda_test: ${MW_CUDA}
 
 nvhpc_clean_test:
 	rm -rf nvhpc_serial_test nvhpc_openmp_test nvhpc_openacc_test nvhpc_openmp45_test nvhpc_do_concurrent_test cuda_test
+
+####################################################################################################
+
+icc: icc_serial icc_openmp icc_openacc icc_openmp45
+
+icc_serial: ${MW_SERIAL}
+	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} -o $@ $<
+
+icc_openmp: ${MW_OPENMP}
+	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENMP_FLAGS} -o $@ $<
+
+# icc_openacc: ${MW_OPENACC}
+#	  ${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENACC_FLAGS} -o $@ $<
+
+icc_openmp45: ${MW_OPENMP45_ICC}
+	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENMP45_FLAGS} -o $@ $<
+
+# icc_do_concurrent: ${MW_DOCONCURRENT}
+#   ${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DDO_CONCURRENT_FLAGS} -o $@ $<
+
+icc_clean:
+	rm -rf icc_serial icc_openmp icc_openacc icc_openmp45
 
 ####################################################################################################
 

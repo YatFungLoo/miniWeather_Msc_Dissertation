@@ -12,13 +12,13 @@ program miniweather
   use omp_lib
   implicit none
   !Declare the precision for the real constants (at least 15 digits of accuracy = double precision)
-#ifdef SINGLE_PREC
-  integer , parameter :: rp = selected_real_kind(6)
-  ! integer , parameter :: mpi_type = MPI_REAL
-#else
+! #ifdef SINGLE_PREC
+!   integer , parameter :: rp = selected_real_kind(6)
+!   ! integer , parameter :: mpi_type = MPI_REAL
+! #else
   integer , parameter :: rp = selected_real_kind(15)
   ! integer , parameter :: mpi_type = MPI_REAL8
-#endif
+! #endif
   !Define some physical constants to use throughout the simulation
   real(rp), parameter :: pi        = 3.14159265358979323846264338327_rp   !Pi
   real(rp), parameter :: grav      = 9.8_rp                               !Gravitational acceleration (m / s^2)
@@ -111,6 +111,8 @@ program miniweather
   !Initialize MPI, allocate arrays, initialize the grid and the data
   call init(dt)
 
+  if (mainproc) write(*,*) 'sim_time:', sim_time
+
   !$omp parallel
   !$omp master
     print *, "num device", omp_get_num_devices()
@@ -139,7 +141,7 @@ program miniweather
     call perform_timestep(state,state_tmp,flux,tend,dt)
     !Inform the user
 #ifndef NO_INFORM
-    if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
+    ! if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
 #endif
     !Update the elapsed time and output counter
     etime = etime + dt
