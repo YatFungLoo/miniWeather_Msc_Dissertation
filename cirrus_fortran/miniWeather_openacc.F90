@@ -12,13 +12,13 @@ program miniweather
   use omp_lib
   implicit none
   !Declare the precision for the real constants (at least 15 digits of accuracy = double precision)
-! #ifdef SINGLE_PREC
-!   integer , parameter :: rp = selected_real_kind(6)
-!   ! integer , parameter :: mpi_type = MPI_REAL
-! #else
+#ifdef SINGLE_PREC
+  integer , parameter :: rp = selected_real_kind(6)
+  ! integer , parameter :: mpi_type = MPI_REAL
+#else
   integer , parameter :: rp = selected_real_kind(15)
   ! integer , parameter :: mpi_type = MPI_REAL8
-! #endif
+#endif
   !Define some physical constants to use throughout the simulation
   real(rp), parameter :: pi        = 3.14159265358979323846264338327_rp   !Pi
   real(rp), parameter :: grav      = 9.8_rp                               !Gravitational acceleration (m / s^2)
@@ -111,14 +111,15 @@ program miniweather
   !Initialize MPI, allocate arrays, initialize the grid and the data
   call init(dt)
 
-  if (mainproc) write(*,*) 'sim_time:', sim_time
-
   !$omp parallel
   !$omp master
     print *, "num device", omp_get_num_devices()
     print *, "num threads", omp_get_num_threads()
   !$omp end master
   !$omp end parallel
+
+  !inform the user
+  if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
 
   ! $acc data copyin(state_tmp,hy_dens_cell,hy_dens_theta_cell,hy_dens_int,hy_dens_theta_int,hy_pressure_int) create(flux,tend,sendbuf_l,sendbuf_r,recvbuf_l,recvbuf_r) copy(state)
   !$acc data copyin(state_tmp,hy_dens_cell,hy_dens_theta_cell,hy_dens_int,hy_dens_theta_int,hy_pressure_int) create(flux,tend) copy(state)

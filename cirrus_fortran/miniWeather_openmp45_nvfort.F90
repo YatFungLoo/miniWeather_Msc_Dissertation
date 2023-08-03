@@ -113,8 +113,6 @@ program miniweather
   !Initialize MPI, allocate arrays, initialize the grid and the data
   call init(dt)
 
-  if (mainproc) write(*,*) 'sim_time:', sim_time
-
   !$omp parallel
   !$omp master
     print *, "num device", omp_get_num_devices()
@@ -127,6 +125,9 @@ program miniweather
     ! print *, "Maximum number of threads", omp_get_thread_limit()
   !$omp end master
   !$omp end parallel
+
+  !inform the user
+  if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
 
   ! $omp target data map(to:state_tmp,hy_dens_cell,hy_dens_theta_cell,hy_dens_int,hy_dens_theta_int,hy_pressure_int) map(alloc:flux,tend,sendbuf_l,sendbuf_r,recvbuf_l,recvbuf_r) map(tofrom:state)
   !$omp target data map(to:state_tmp,hy_dens_cell,hy_dens_theta_cell,hy_dens_int,hy_dens_theta_int,hy_pressure_int) map(alloc:flux,tend) map(tofrom:state)
