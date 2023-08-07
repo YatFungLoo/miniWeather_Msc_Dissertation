@@ -20,9 +20,10 @@ module load intel-20.4/vtune
 # nvaccelinfo
 echo ==========
 
-# EXEC=nvhpc_openmp45
-EXEC=nvhpc_openacc
-# EXEC=nvhpc_do_concurrent
+EXEC=nvfort_openacc
+# EXEC1=nvfort_openmp45
+# EXEC2=nvfort_openacc
+# EXEC3=nvfort_do-concurrent
 
 # export OMP_NUM_THREADS=1
 
@@ -30,11 +31,16 @@ echo EXEC_NAME: ${EXEC}_gpu
 
 echo ==========
 
-# run on gpu
-srun -n 1 ../${EXEC}
+run on gpu
+# srun -n 1 ../${EXEC}
 
 # nvidia nsight system
-# srun -n 1 nsys profile --gpu-metrics-device=all -o nsys_${EXEC} ../${EXEC}
+# srun -n 1 nsys profile --trace=openmp --gpu-metrics-device=all -o nsys_${EXEC} ../${EXEC}
+srun -n 1 nsys profile --trace=openacc --gpu-metrics-device=all -o nsys_${EXEC}_managed ../${EXEC}
+
+# srun -n 1 nsys profile --trace=cuda --gpu-metrics-device=all -o nsys_${EXEC1}_100_cuda ../${EXEC1}
+# srun -n 1 nsys profile --trace=cuda --gpu-metrics-device=all -o nsys_${EXEC2}_100_cuda ../${EXEC2}
+# srun -n 1 nsys profile --trace=cuda --gpu-metrics-device=all -o nsys_${EXEC3}_100_cuda ../${EXEC3}
 
 # nvidia nsight compute
 # srun -n 1 ncu --set default -o ncu_${EXEC} ../${EXEC}
