@@ -239,7 +239,7 @@ void semi_discrete_step( double *state_init , double *state_forcing , double *st
   }
 
   //Apply the tendencies to the fluid state
-#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd num_teams(128) thread_limit(35157) collapse(3) depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -286,7 +286,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend , double 
   //Compute the hyperviscosity coefficient
   hv_coef = -hv_beta * dx / (16*dt);
   //Compute fluxes in the x-direction for each cell
-#pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
   for (k=0; k<nz; k++) {
     for (i=0; i<nx+1; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -317,7 +317,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend , double 
   }
 
   //Use the fluxes to compute tendencies for each cell
-#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -341,8 +341,8 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
   //Compute the hyperviscosity coefficient
   hv_coef = -hv_beta * dz / (16*dt);
   //Compute fluxes in the x-direction for each cell
-// #pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) // nowait
-#pragma omp target teams distribute parallel for simd private(stencil,vals,d3_vals) depend(inout:asyncid) // nowait
+// #pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+#pragma omp target teams distribute parallel for simd private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
   for (k=0; k<nz+1; k++) {
     for (i=0; i<nx; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -378,7 +378,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
   }
 
   //Use the fluxes to compute tendencies for each cell
-#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -402,7 +402,8 @@ void set_halo_values_x( double *state ) {
   double z;
 
   // MPI_Request req_r[2], req_s[2];
-  #pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) // nowait
+  // #pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
+  #pragma omp target teams distribute parallel for simd depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + 0      ] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs-2];
@@ -419,7 +420,7 @@ void set_halo_values_x( double *state ) {
 //   ierr = MPI_Irecv(recvbuf_r,hs*nz*NUM_VARS,MPI_DOUBLE,right_rank,1,MPI_COMM_WORLD,&req_r[1]);
 
 //   //Pack the send buffers
-// #pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) // nowait
+// #pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
 //   for (ll=0; ll<NUM_VARS; ll++) {
 //     for (k=0; k<nz; k++) {
 //       for (s=0; s<hs; s++) {
@@ -429,7 +430,7 @@ void set_halo_values_x( double *state ) {
 //     }
 //   }
 
-// #pragma omp target update from(sendbuf_l[:nz*hs*NUM_VARS],sendbuf_r[:nz*hs*NUM_VARS]) depend(inout:asyncid) // nowait
+// #pragma omp target update from(sendbuf_l[:nz*hs*NUM_VARS],sendbuf_r[:nz*hs*NUM_VARS]) depend(inout:asyncid) nowait
 // #pragma omp taskwait
 
 //   //Fire off the sends
@@ -439,10 +440,10 @@ void set_halo_values_x( double *state ) {
 //   //Wait for receives to finish
 //   ierr = MPI_Waitall(2,req_r,MPI_STATUSES_IGNORE);
 
-// #pragma omp target update to(recvbuf_l[:nz*hs*NUM_VARS],recvbuf_r[:nz*hs*NUM_VARS]) depend(inout:asyncid) // nowait
+// #pragma omp target update to(recvbuf_l[:nz*hs*NUM_VARS],recvbuf_r[:nz*hs*NUM_VARS]) depend(inout:asyncid) nowait
 
 //   //Unpack the receive buffers
-// #pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) // nowait
+// #pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
 //   for (ll=0; ll<NUM_VARS; ll++) {
 //     for (k=0; k<nz; k++) {
 //       for (s=0; s<hs; s++) {
@@ -457,7 +458,7 @@ void set_halo_values_x( double *state ) {
 
   if (data_spec_int == DATA_SPEC_INJECTION) {
     if (myrank == 0) {
-#pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
       for (k=0; k<nz; k++) {
         for (i=0; i<hs; i++) {
           z = (k_beg + k+0.5)*dz;
@@ -479,7 +480,7 @@ void set_halo_values_x( double *state ) {
 //decomposition in the vertical direction
 void set_halo_values_z( double *state ) {
   int          i, ll;
-#pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) // nowait
+#pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (i=0; i<nx+2*hs; i++) {
       if (ll == ID_WMOM) {
@@ -768,7 +769,7 @@ double sample_ellipse_cosine( double x , double z , double amp , double x0 , dou
 //   double *dens, *uwnd, *wwnd, *theta;
 //   double *etimearr;
 
-// #pragma omp target update from(state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) depend(inout:asyncid) // nowait
+// #pragma omp target update from(state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) depend(inout:asyncid) nowait
 // #pragma omp taskwait
 
 //   //Inform the user

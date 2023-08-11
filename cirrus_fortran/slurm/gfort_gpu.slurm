@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=00:10:00
 
-#SBATCH --job-name=gfort-openmp45-gpu
+#SBATCH --job-name=gfort-openmp45-test-gpu
 #SBATCH --output=%x-%j.out
 #SBATCH --account=m22oc-s1754999
 
@@ -21,7 +21,9 @@ echo ==========
 
 EXEC=gfortran_openmp45
 # EXEC=gfortran_openacc
-# export OMP_NUM_THREADS=1000
+# export OMP_NUM_THREADS=128
+# export OMP_THREAD_LIMIT=40000
+
 
 echo EXEC_NAME: ${EXEC}_gpu
 echo ==========

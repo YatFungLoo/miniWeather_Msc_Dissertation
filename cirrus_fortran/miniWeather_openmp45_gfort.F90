@@ -113,18 +113,33 @@ program miniweather
   !Initialize MPI, allocate arrays, initialize the grid and the data
   call init(dt)
 
+  ! call omp_set_dynamic(.true.)
+  ! call omp_set_num_threads(1920)
+  ! call omp_set_num_teams(1920)
+  ! call omp_set_teams_thread_limit(1920)
+
+  ! !$omp target
+  ! call omp_set_dynamic(.true.)
+  ! call omp_set_num_threads(1920)
+  ! call omp_set_num_teams(1920)
+  ! call omp_set_teams_thread_limit(128)
+  ! !$omp end target
+
   !$omp parallel
   !$omp master
     print *, "num device", omp_get_num_devices()
     print *, "num threads", omp_get_num_threads()
-    ! print *, "Number of teams", omp_get_num_teams()
-    ! print *, "Size of the active team", omp_get_num_threads()
-    ! print *, "Get team number", omp_get_team_num()
+    print *, "Number of teams", omp_get_num_teams()
+    print *, "Size of the active team", omp_get_num_threads()
+    print *, "Get team number", omp_get_team_num()
     ! print *, "Number of threads in a team", omp_get_team_size()
-    ! print *, "Maximum number of threads imposed by teams", omp_get_teams_thread_limit()
-    ! print *, "Maximum number of threads", omp_get_thread_limit()
+    print *, "Maximum number of threads imposed by teams", omp_get_teams_thread_limit()
+    print *, "Maximum number of threads", omp_get_thread_limit()
+    print *, "Maximum number of teams", omp_get_max_teams()
+
   !$omp end master
   !$omp end parallel
+
 
   !inform the user
   if (mainproc) write(*,*) 'Elapsed Time: ', etime , ' / ' , sim_time
@@ -257,7 +272,7 @@ contains
     endif
 
     !Apply the tendencies to the fluid state
-    !$omp target teams distribute parallel do simd collapse(3) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do num_teams(128) thread_limit(35157) collapse(3) depend(inout:asyncid)
     do ll = 1 , NUM_VARS
       do k = 1 , nz
         do i = 1 , nx
@@ -304,7 +319,7 @@ contains
     !Compute the hyperviscosity coefficient
     hv_coef = -hv_beta * dx / (16*dt)
     !Compute fluxes in the x-direction for each cell
-    !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+    !$omp target teams distribute parallel do simd num_teams(128) thread_limit(8795) collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
     do k = 1 , nz
       do i = 1 , nx+1
         !Use fourth-order interpolation from four cell averages to compute the value at the interface in question

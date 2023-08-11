@@ -1,5 +1,5 @@
 # input flags
-INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=50 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
+INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=10 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
 
 # file names
 MW_SERIAL = miniWeather_serial_nompi.F90
@@ -18,14 +18,14 @@ GNU_FC = gfortran
 GNU_DFFLAGS = -O3 -g -ffree-line-length-none
 GNU_DOPENMP_FLAGS = -fopenmp -fopt-info
 GNU_DOPENACC_FLAGS = -fopenacc -foffload="-lm -latomic -lgfortran" -fopt-info-omp # -fopenacc-dim=16384:1:128
-GNU_DOPENMP45_FLAGS = -fopenmp -foffload="-lm -latomic" -fopt-info
+GNU_DOPENMP45_FLAGS = -fopenmp -foffload=nvptx-none="-lm -latomic" # -fopt-info
 GNU_DDO_CONCURRENT_FLAGS = -ftree-parallelize-loops=2
 
 # nvfortran compiler flags
 NV_FC = nvfortran
 NV_DFFLAGS = -O3 -g -Mvect -Mextend # -DNO_INFORM
 NV_DOPENMP_FLAGS = -mp # -Minfo=mp
-NV_DOPENACC_FLAGS = -acc -Minfo # -ta=multicore # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
+NV_DOPENACC_FLAGS = -acc -Minfo # -gpu=managed 	# -ta=multicore # -gpu=cc70,fastmath,loadcache:L1,ptxinfo
 NV_DOPENMP45_FLAGS = -mp=gpu  # -gpu=cc70,fastmath,loadcache:L1,ptxinfo -Minfo=mp
 NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore # -gpu=cc50 # ,fastmath,loadcache:L1,ptxinfo # -Minfo=stdpar
 NV_DCUDA_FLAGS = #-Mcuda #-arch=sm_70
