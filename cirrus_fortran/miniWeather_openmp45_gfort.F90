@@ -136,7 +136,6 @@ program miniweather
     print *, "Maximum number of threads imposed by teams", omp_get_teams_thread_limit()
     print *, "Maximum number of threads", omp_get_thread_limit()
     print *, "Maximum number of teams", omp_get_max_teams()
-
   !$omp end master
   !$omp end parallel
 

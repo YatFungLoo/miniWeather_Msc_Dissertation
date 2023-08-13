@@ -1,5 +1,5 @@
 # input flags
-INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=10 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
+INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=50 -D_OUT_FREQ=100 -D_DATA_SPEC=DATA_SPEC_THERMAL
 
 # file names
 MW_SERIAL = miniWeather_serial_nompi.F90
@@ -7,7 +7,7 @@ MW_OPENMP = miniWeather_openmp.F90
 MW_OPENACC = miniWeather_openacc.F90
 MW_OPENMP45_GNU = miniWeather_openmp45_gfort.F90
 MW_OPENMP45_NV = miniWeather_openmp45_nvfort.F90
-MW_OPENMP45_ICC = miniWeather_openmp45_nvfort.F90
+MW_OPENMP45_IFX = miniWeather_openmp45_nvfort.F90
 MW_DOCONCURRENT = miniWeather_do_concurrent.F90
 MW_CUDA = miniWeather_cuda.CUF
 
@@ -17,7 +17,7 @@ MW_CUDA = miniWeather_cuda.CUF
 GNU_FC = gfortran
 GNU_DFFLAGS = -O3 -g -ffree-line-length-none
 GNU_DOPENMP_FLAGS = -fopenmp -fopt-info
-GNU_DOPENACC_FLAGS = -fopenacc -foffload="-lm -latomic -lgfortran" -fopt-info-omp # -fopenacc-dim=16384:1:128
+GNU_DOPENACC_FLAGS = -fopenacc -foffload="-lm -latomic -lgfortran" # -fopenacc-dim=32768:1:128 # -fopt-info-omp 
 GNU_DOPENMP45_FLAGS = -fopenmp -foffload=nvptx-none="-lm -latomic" # -fopt-info
 GNU_DDO_CONCURRENT_FLAGS = -ftree-parallelize-loops=2
 
@@ -31,12 +31,11 @@ NV_DDO_CONCURRENT_FLAGS = -stdpar=gpu,multicore # -gpu=cc50 # ,fastmath,loadcach
 NV_DCUDA_FLAGS = #-Mcuda #-arch=sm_70
 
 # intel compiler flags (work in progress)
-ICC_FC = ifx
-ICC_DFFLAGS = -Ofast -fp-model=fast=2 -xHost # -DNO_INFORM -fast-transcendentals
-ICC_DOPENMP_FLAGS = -qopenmp
-# ICC_DOPENACC_FLAGS = not supported
-ICC_DOPENMP45_FLAGS = -fiopenmp -fopenmp-targets=spir64
-ICC_DDO_CONCURRENT_FLAGS =
+IFX_FC = ifx
+IFX_DFFLAGS = -Ofast -fp-model=fast=2 -xHost # -DNO_INFORM -fast-transcendentals
+IFX_DOPENMP_FLAGS = -qopenmp
+IFX_DOPENMP45_FLAGS = -fiopenmp -fopenmp-targets=spir64
+IFX_DDO_CONCURRENT_FLAGS = -qopenmp
 
 # for correctness checking
 CHECK_OUTPUT_PATH = check_output.sh
@@ -147,55 +146,48 @@ nvfort_clean_test:
 
 ####################################################################################################
 
-icc: icc_serial icc_openmp icc_openmp45 icc_do-concurrent
+ifx: ifx_serial ifx_openmp ifx_do-concurrent
 
-icc_serial: ${MW_SERIAL}
-	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} -o $@ $<
+ifx_serial: ${MW_SERIAL}
+	${IFX_FC} ${INPUT_FLAGS} ${IFX_DFFLAGS} -o $@ $<
 
-icc_openmp: ${MW_OPENMP}
-	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENMP_FLAGS} -o $@ $<
+ifx_openmp: ${MW_OPENMP}
+	${IFX_FC} ${INPUT_FLAGS} ${IFX_DFFLAGS} ${IFX_DOPENMP_FLAGS} -o $@ $<
 
-# icc_openacc: ${MW_OPENACC}
-#	  ${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENACC_FLAGS} -o $@ $<
+# ifx_openmp45: ${MW_OPENMP45_IFX}
+# 	${IFX_FC} ${INPUT_FLAGS} ${IFX_DFFLAGS} ${IFX_DOPENMP45_FLAGS} -o $@ $<
 
-icc_openmp45: ${MW_OPENMP45_ICC}
-	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENMP45_FLAGS} -o $@ $<
+ifx_do-concurrent: ${MW_DOCONCURRENT}
+	${IFX_FC} ${INPUT_FLAGS} ${IFX_DFFLAGS} ${IFX_DDO_CONCURRENT_FLAGS} -o $@ $<
 
-icc_do-concurrent: ${MW_DOCONCURRENT}
-	${ICC_FC} ${INPUT_FLAGS} ${ICC_DFFLAGS} ${ICC_DDO_CONCURRENT_FLAGS} -o $@ $<
-
-icc_clean:
-	rm -rf icc_serial icc_openmp icc_openmp45 icc_do-concurrent
+ifx_clean:
+	rm -rf ifx_serial ifx_openmp ifx_openmp45 ifx_do-concurrent
 
 ####################################################################################################
 
-icc_test: icc_serial_test icc_openmp_test icc_openmp45_test icc_do-concurrent_test 
+ifx_test: ifx_serial_test ifx_openmp_test ifx_do-concurrent_test 
 
-icc_serial_test: ${MW_SERIAL}
-	${ICC_FC} ${TEST_FLAGS} ${ICC_DFFLAGS} -o $@ $<
+ifx_serial_test: ${MW_SERIAL}
+	${IFX_FC} ${TEST_FLAGS} ${IFX_DFFLAGS} -o $@ $<
 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
-icc_openmp_test: ${MW_OPENMP}
-	${ICC_FC} ${TEST_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENMP_FLAGS} -o $@ $<
+ifx_openmp_test: ${MW_OPENMP}
+	${IFX_FC} ${TEST_FLAGS} ${IFX_DFFLAGS} ${IFX_DOPENMP_FLAGS} -o $@ $<
 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
-# icc_openacc_test: ${MW_OPENACC}
-# 	${ICC_FC} ${TEST_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENACC_FLAGS} -o $@ $<
-# 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
-
-icc_openmp45_test: ${MW_OPENMP45_ICC}
-	${ICC_FC} ${TEST_FLAGS} ${ICC_DFFLAGS} ${ICC_DOPENMP45_FLAGS} -o $@ $<
+# ifx_openmp45_test: ${MW_OPENMP45_IFX}
+# 	${IFX_FC} ${TEST_FLAGS} ${IFX_DFFLAGS} ${IFX_DOPENMP45_FLAGS} -o $@ $<
 #	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
-icc_do-concurrent_test: ${MW_DOCONCURRENT}
-	${ICC_FC} ${TEST_FLAGS} ${ICC_DFFLAGS} ${ICC_DDO_CONCURRENT_FLAGS} -o $@ $<
+ifx_do-concurrent_test: ${MW_DOCONCURRENT}
+	${IFX_FC} ${TEST_FLAGS} ${IFX_DFFLAGS} ${IFX_DDO_CONCURRENT_FLAGS} -o $@ $<
 	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
 
-icc_clean_test:
-	rm -rf icc_serial_test icc_openmp_test icc_openacc_test icc_openmp45_test icc_do-concurrent_test cuda_test
+ifx_clean_test:
+	rm -rf ifx_serial_test ifx_openmp_test ifx_openacc_test ifx_openmp45_test ifx_do-concurrent_test cuda_test
 
 ####################################################################################################
 
-clean: gfortran_clean nvfort_clean icc_clean
+clean: gfortran_clean nvfort_clean ifx_clean
 
-clean_test: gfortran_clean_test nvfort_clean_test icc_clean_test
+clean_test: gfortran_clean_test nvfort_clean_test ifx_clean_test
