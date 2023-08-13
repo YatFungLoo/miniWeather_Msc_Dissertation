@@ -51,8 +51,6 @@ constexpr int nqpoints = 3;
 constexpr double qpoints [] = { 0.112701665379258311482073460022E0 , 0.500000000000000000000000000000E0 , 0.887298334620741688517926539980E0 };
 constexpr double qweights[] = { 0.277777777777777777777777777779E0 , 0.444444444444444444444444444444E0 , 0.277777777777777777777777777779E0 };
 
-int asyncid = 1;
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // BEGIN USER-CONFIGURABLE PARAMETERS
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -136,10 +134,10 @@ int main(int argc, char **argv) {
 
   init( &argc , &argv );
 
-#pragma omp target data map(to:state_tmp[:(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[:nz+2*hs],hy_dens_theta_cell[:nz+2*hs],hy_dens_int[:nz+1],hy_dens_theta_int[:nz+1],hy_pressure_int[:nz+1]) \
-        map(alloc:flux[:(nz+1)*(nx+1)*NUM_VARS],tend[:nz*nx*NUM_VARS]) \
-        map(tofrom:state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
-{
+#pragma acc data copyin(state_tmp[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[0:nz+2*hs],hy_dens_theta_cell[0:nz+2*hs],hy_dens_int[0:nz+1],hy_dens_theta_int[0:nz+1],hy_pressure_int[0:nz+1]) \
+        create(flux[0:(nz+1)*(nx+1)*NUM_VARS],tend[0:nz*nx*NUM_VARS],sendbuf_l[0:hs*nz*NUM_VARS],sendbuf_r[0:hs*nz*NUM_VARS],recvbuf_l[0:hs*nz*NUM_VARS],recvbuf_r[0:hs*nz*NUM_VARS]) \
+        copy(state[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+{        
 
   //Initial reductions for mass, kinetic energy, and total energy
   reductions(mass0,te0);
@@ -150,7 +148,7 @@ int main(int argc, char **argv) {
   ////////////////////////////////////////////////////
   // MAIN TIME STEP LOOP
   ////////////////////////////////////////////////////
-#pragma omp taskwait
+#pragma acc wait
   auto t1 = std::chrono::steady_clock::now();
   while (etime < sim_time) {
     //If the time step leads to exceeding the simulation time, shorten it for the last step
@@ -170,7 +168,7 @@ int main(int argc, char **argv) {
       // output(state,etime);
     }
   }
-#pragma omp taskwait
+#pragma acc wait
   auto t2 = std::chrono::steady_clock::now();
   if (mainproc) {
     std::cout << "CPU Time: " << std::chrono::duration<double>(t2-t1).count() << " sec\n";
@@ -239,7 +237,7 @@ void semi_discrete_step( double *state_init , double *state_forcing , double *st
   }
 
   //Apply the tendencies to the fluid state
-#pragma omp target teams distribute parallel for simd num_teams(128) thread_limit(35157) collapse(3) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(3) default(present) async
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -286,7 +284,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend , double 
   //Compute the hyperviscosity coefficient
   hv_coef = -hv_beta * dx / (16*dt);
   //Compute fluxes in the x-direction for each cell
-#pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(2) private(stencil,vals,d3_vals) default(present) async
   for (k=0; k<nz; k++) {
     for (i=0; i<nx+1; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -317,7 +315,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend , double 
   }
 
   //Use the fluxes to compute tendencies for each cell
-#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(3) default(present) async
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -341,8 +339,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
   //Compute the hyperviscosity coefficient
   hv_coef = -hv_beta * dz / (16*dt);
   //Compute fluxes in the x-direction for each cell
-// #pragma omp target teams distribute parallel for simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
-#pragma omp target teams distribute parallel for simd private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(2) private(stencil,vals,d3_vals) default(present) async
   for (k=0; k<nz+1; k++) {
     for (i=0; i<nx; i++) {
       //Use fourth-order interpolation from four cell averages to compute the value at the interface in question
@@ -378,7 +375,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
   }
 
   //Use the fluxes to compute tendencies for each cell
-#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(3) default(present) async
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -402,7 +399,7 @@ void set_halo_values_x( double *state ) {
   double z;
 
   // MPI_Request req_r[2], req_s[2];
-  #pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
+#pragma acc parallel loop default(present) async
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + 0      ] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs-2];
@@ -411,15 +408,15 @@ void set_halo_values_x( double *state ) {
       state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs+1] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + hs+1   ];
     }
   }
-
+  
 //   MPI_Request req_r[2], req_s[2];
 
-//   // Prepost receives
+//   //Prepost receives
 //   ierr = MPI_Irecv(recvbuf_l,hs*nz*NUM_VARS,MPI_DOUBLE, left_rank,0,MPI_COMM_WORLD,&req_r[0]);
 //   ierr = MPI_Irecv(recvbuf_r,hs*nz*NUM_VARS,MPI_DOUBLE,right_rank,1,MPI_COMM_WORLD,&req_r[1]);
 
 //   //Pack the send buffers
-// #pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
+// #pragma acc parallel loop collapse(3) default(present) async
 //   for (ll=0; ll<NUM_VARS; ll++) {
 //     for (k=0; k<nz; k++) {
 //       for (s=0; s<hs; s++) {
@@ -429,8 +426,8 @@ void set_halo_values_x( double *state ) {
 //     }
 //   }
 
-// #pragma omp target update from(sendbuf_l[:nz*hs*NUM_VARS],sendbuf_r[:nz*hs*NUM_VARS]) depend(inout:asyncid) nowait
-// #pragma omp taskwait
+// #pragma acc update host(sendbuf_l[0:nz*hs*NUM_VARS],sendbuf_r[0:nz*hs*NUM_VARS]) async
+// #pragma acc wait
 
 //   //Fire off the sends
 //   ierr = MPI_Isend(sendbuf_l,hs*nz*NUM_VARS,MPI_DOUBLE, left_rank,1,MPI_COMM_WORLD,&req_s[0]);
@@ -439,10 +436,10 @@ void set_halo_values_x( double *state ) {
 //   //Wait for receives to finish
 //   ierr = MPI_Waitall(2,req_r,MPI_STATUSES_IGNORE);
 
-// #pragma omp target update to(recvbuf_l[:nz*hs*NUM_VARS],recvbuf_r[:nz*hs*NUM_VARS]) depend(inout:asyncid) nowait
+// #pragma acc update device(recvbuf_l[0:nz*hs*NUM_VARS],recvbuf_r[0:nz*hs*NUM_VARS]) async
 
 //   //Unpack the receive buffers
-// #pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
+// #pragma acc parallel loop collapse(3) default(present) async
 //   for (ll=0; ll<NUM_VARS; ll++) {
 //     for (k=0; k<nz; k++) {
 //       for (s=0; s<hs; s++) {
@@ -457,11 +454,11 @@ void set_halo_values_x( double *state ) {
 
   if (data_spec_int == DATA_SPEC_INJECTION) {
     if (myrank == 0) {
-#pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(2) default(present) async
       for (k=0; k<nz; k++) {
         for (i=0; i<hs; i++) {
           z = (k_beg + k+0.5)*dz;
-          if (fabs(z-3*zlen/4) <= zlen/16) {
+          if (abs(z-3*zlen/4) <= zlen/16) {
             ind_r = ID_DENS*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i;
             ind_u = ID_UMOM*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i;
             ind_t = ID_RHOT*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i;
@@ -479,7 +476,7 @@ void set_halo_values_x( double *state ) {
 //decomposition in the vertical direction
 void set_halo_values_z( double *state ) {
   int          i, ll;
-#pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
+#pragma acc parallel loop collapse(2) default(present) async
   for (ll=0; ll<NUM_VARS; ll++) {
     for (i=0; i<nx+2*hs; i++) {
       if (ll == ID_WMOM) {
@@ -767,10 +764,8 @@ double sample_ellipse_cosine( double x , double z , double amp , double x0 , dou
 //   //Temporary arrays to hold density, u-wind, w-wind, and potential temperature (theta)
 //   double *dens, *uwnd, *wwnd, *theta;
 //   double *etimearr;
-
-// #pragma omp target update from(state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) depend(inout:asyncid) nowait
-// #pragma omp taskwait
-
+// #pragma acc update host(state[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS]) async
+// #pragma acc wait
 //   //Inform the user
 //   if (mainproc) { printf("*** OUTPUT ***\n"); }
 //   //Allocate some (big) temp arrays
@@ -891,7 +886,7 @@ void finalize() {
 void reductions( double &mass , double &te ) {
   mass = 0;
   te   = 0;
-#pragma omp target teams distribute parallel for simd collapse(2) reduction(+:mass,te)
+  #pragma acc parallel loop collapse(2) reduction(+:mass,te) default(present)
   for (int k=0; k<nz; k++) {
     for (int i=0; i<nx; i++) {
       int ind_r = ID_DENS*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
@@ -914,7 +909,6 @@ void reductions( double &mass , double &te ) {
   loc[0] = mass;
   loc[1] = te;
   // int ierr = MPI_Allreduce(loc,glob,2,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-  printf("mass: %f, te:: %f\n", mass, te);
   // mass = glob[0];
   // te   = glob[1];
 }

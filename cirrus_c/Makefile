@@ -1,6 +1,6 @@
 # input flags
 # INPUT_FLAGS = -D_NX=200 -D_NZ=100 -D_SIM_TIME=100 -D_OUT_FREQ=1000 -D_DATA_SPEC=DATA_SPEC_THERMAL
-INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=10 -D_OUT_FREQ=1000 -D_DATA_SPEC=DATA_SPEC_THERMAL
+INPUT_FLAGS = -D_NX=1500 -D_NZ=750 -D_SIM_TIME=1 -D_OUT_FREQ=1000 -D_DATA_SPEC=DATA_SPEC_THERMAL
 
 # file names
 MW_SERIAL = miniWeather_serial_nompi.cpp
@@ -13,18 +13,18 @@ MW_CUDA =
 ####################################################################################################
 
 # gfortran compiler flags
-GCC_CC = g++
-GCC_DFFLAGS = -O3 -g -march=native -std=c++11
-GCC_DOPENACC_FLAGS =
-GCC_DOPENMP_FLAGS =
-GCC_DOPENMP45_FLAGS = -fopenmp -foffload=nvptx-none="-lm -latomic"
+GPP_CC = g++
+GPP_DFFLAGS = -O3 -g -march=native -std=c++11
+GPP_DOPENMP_FLAGS = -fopenmp
+GPP_DOPENACC_FLAGS = -fopenacc
+GPP_DOPENMP45_FLAGS = -fopenmp -foffload=nvptx-none="-lm -latomic"
 
 # nvfortran compiler flags
-NV_CC = nvc++
-NV_DFFLAGS =
-NV_DOPENACC_FLAGS =
-NV_DOPENMP_FLAGS =
-NV_DOPENMP45_FLAGS = -mp=gpu -Minfo=mp
+NVCPP_CC = nvc++
+NVCPP_DFFLAGS = -O3 -g -Mvect -Mextend
+NVCPP_DOPENMP_FLAGS = -mp=gpu # -Minfo=mp
+NVCPP_DOPENACC_FLAGS = -acc # -Minfo=accel
+NVCPP_DOPENMP45_FLAGS = -mp=gpu -Minfo=mp
 
 # for correctness checking
 CHECK_OUTPUT_PATH = check_output.sh
@@ -34,40 +34,66 @@ MAX_ENERGY_CHANGE = 4.5e-5
 
 ####################################################################################################
 
-gcc: gcc_serial gcc_openmp45 # gcc_openmp gcc_openacc
+g++: g++_serial g++_openmp45 g++_openmp g++_openacc
 
-gcc_serial: ${MW_SERIAL}
-	${GCC_CC} ${INPUT_FLAGS} ${GCC_DFFLAGS} -o $@ $<
+g++_serial: ${MW_SERIAL}
+	${GPP_CC} ${INPUT_FLAGS} ${GPP_DFFLAGS} -o $@ $<
 
-# gcc_openmp: ${MW_OPENMP}
-# 	${GCC_CC} ${INPUT_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENMP_FLAGS} -o $@ $<
+g++_openmp: ${MW_OPENMP}
+	${GPP_CC} ${INPUT_FLAGS} ${GPP_DFFLAGS} ${GPP_DOPENMP_FLAGS} -o $@ $<
 
-# gcc_openacc: ${MW_OPENACC}
-# 	${GCC_CC} ${INPUT_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENACC_FLAGS} -o $@ $<
+g++_openacc: ${MW_OPENACC}
+	${GPP_CC} ${INPUT_FLAGS} ${GPP_DFFLAGS} ${GPP_DOPENACC_FLAGS} -o $@ $<
 
-gcc_openmp45: ${MW_OPENMP45}
-	${GCC_CC} ${INPUT_FLAGS} ${GCC_DFFLAGS} ${GCC_DOPENMP45_FLAGS} -o $@ $<
+g++_openmp45: ${MW_OPENMP45}
+	${GPP_CC} ${INPUT_FLAGS} ${GPP_DFFLAGS} ${GPP_DOPENMP45_FLAGS} -o $@ $<
 
-gcc_clean:
-	rm -rf gcc_serial gcc_openmp gcc_openacc gcc_openmp45
-
-####################################################################################################
-
-# nvhpc:
-# 	make nvhpc_serial
-# 	make nvhpc_openmp45
-
-# nvhpc_serial: miniWeather_serial_copy.cpp
-# 	nvc++ -D_NX=200 -D_NZ=100 -D_SIM_TIME=150 -D_OUT_FREQ=1001 -D_DATA_SPEC=DATA_SPEC_THERMAL \
-# 	miniWeather_serial_copy.cpp -o serial_nvhpc
-
-# nvhpc_openmp45: miniWeather_mpi_openmp45_copy.cpp
-# 	nvc++ -D_NX=200 -D_NZ=100 -D_SIM_TIME=150 -D_OUT_FREQ=1001 -D_DATA_SPEC=DATA_SPEC_THERMAL \
-# 	-mp=gpu -Minfo=mp miniWeather_mpi_openmp45_copy.cpp -o openmp45_nvhpc 
-
-# nvhpc_clean:
-# 	rm serial_nvhpc openmp45_nvhpc
+g++_clean:
+	rm -rf g++_serial g++_openmp g++_openacc g++_openmp45
 
 ####################################################################################################
 
-clean: gcc_clean # nvhpc_clean
+g++_test: g++_serial_test g++_openmp45_test g++_openmp_test g++_openacc_test
+
+g++_serial_test: ${MW_SERIAL}
+	${GPP_CC} ${TEST_FLAGS} ${GPP_DFFLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+g++_openmp_test: ${MW_OPENMP}
+	${GPP_CC} ${TEST_FLAGS} ${GPP_DFFLAGS} ${GPP_DOPENMP_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+g++_openacc_test: ${MW_OPENACC}
+	${GPP_CC} ${TEST_FLAGS} ${GPP_DFFLAGS} ${GPP_DOPENACC_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+g++_openmp45_test: ${MW_OPENMP45}
+	${GPP_CC} ${TEST_FLAGS} ${GPP_DFFLAGS} ${GPP_DOPENMP45_FLAGS} -o $@ $<
+	./${CHECK_OUTPUT_PATH} ./$@ ${MAX_MASS_CHANGE} ${MAX_ENERGY_CHANGE}
+
+g++_clean_test:
+	rm -rf g++_serial_test g++_openmp_test g++_openacc_test g++_openmp45_test
+
+####################################################################################################
+
+
+nvc++: nvc++_serial nvc++_openmp45 nvc++_openmp nvc++_openacc
+
+nvc++_serial: ${MW_SERIAL}
+	${NVCPP_CC} ${INPUT_FLAGS} ${NVCPP_DFFLAGS} -o $@ $<
+
+nvc++_openmp: ${MW_OPENMP}
+	${NVCPP_CC} ${INPUT_FLAGS} ${NVCPP_DFFLAGS} ${NVCPP_DOPENMP_FLAGS} -o $@ $<
+
+nvc++_openacc: ${MW_OPENACC}
+	${NVCPP_CC} ${INPUT_FLAGS} ${NVCPP_DFFLAGS} ${NVCPP_DOPENACC_FLAGS} -o $@ $<
+
+nvc++_openmp45: ${MW_OPENMP45}
+	${NVCPP_CC} ${INPUT_FLAGS} ${NVCPP_DFFLAGS} ${NVCPP_DOPENMP45_FLAGS} -o $@ $<
+
+nvc++_clean:
+	rm -rf nvc++_serial nvc++_openmp nvc++_openacc nvc++_openmp45
+
+####################################################################################################
+
+clean: g++_clean g++_clean_test nvc++_clean
