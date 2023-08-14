@@ -92,14 +92,14 @@ double *state;                //Fluid state.             Dimensions: (1-hs:nx+hs
 double *state_tmp;            //Fluid state.             Dimensions: (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
 double *flux;                 //Cell interface fluxes.   Dimensions: (nx+1,nz+1,NUM_VARS)
 double *tend;                 //Fluid state tendencies.  Dimensions: (nx,nz,NUM_VARS)
-// double *sendbuf_l;            //Buffer to send data to the left MPI rank
-// double *sendbuf_r;            //Buffer to send data to the right MPI rank
-// double *recvbuf_l;            //Buffer to receive data from the left MPI rank
-// double *recvbuf_r;            //Buffer to receive data from the right MPI rank
+double *sendbuf_l;            //Buffer to send data to the left MPI rank
+double *sendbuf_r;            //Buffer to send data to the right MPI rank
+double *recvbuf_l;            //Buffer to receive data from the left MPI rank
+double *recvbuf_r;            //Buffer to receive data from the right MPI rank
 int    num_out = 0;           //The number of outputs performed so far
 int    direction_switch = 1;
-double mass0, te0;            //Initial domain totals for mass and total energy  
-double mass , te ;            //Domain totals for mass and total energy  
+double mass0, te0;            //Initial domain totals for mass and total energy
+double mass , te ;            //Domain totals for mass and total energy
 
 //How is this not in the standard?!
 double dmin( double a , double b ) { if (a<b) {return a;} else {return b;} };
@@ -134,10 +134,17 @@ int main(int argc, char **argv) {
 
   init( &argc , &argv );
 
+  if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
+
+
 #pragma acc data copyin(state_tmp[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[0:nz+2*hs],hy_dens_theta_cell[0:nz+2*hs],hy_dens_int[0:nz+1],hy_dens_theta_int[0:nz+1],hy_pressure_int[0:nz+1]) \
         create(flux[0:(nz+1)*(nx+1)*NUM_VARS],tend[0:nz*nx*NUM_VARS],sendbuf_l[0:hs*nz*NUM_VARS],sendbuf_r[0:hs*nz*NUM_VARS],recvbuf_l[0:hs*nz*NUM_VARS],recvbuf_r[0:hs*nz*NUM_VARS]) \
         copy(state[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
-{        
+{
+
+// #pragma acc data copyin(state_tmp[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[0:nz+2*hs],hy_dens_theta_cell[0:nz+2*hs],hy_dens_int[0:nz+1],hy_dens_theta_int[0:nz+1],hy_pressure_int[0:nz+1]) \
+// create(flux[0:(nz+1)*(nx+1)*NUM_VARS],tend[0:nz*nx*NUM_VARS]) copy(state[0:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
+{
 
   //Initial reductions for mass, kinetic energy, and total energy
   reductions(mass0,te0);
@@ -157,7 +164,7 @@ int main(int argc, char **argv) {
     perform_timestep(state,state_tmp,flux,tend,dt);
     //Inform the user
 #ifndef NO_INFORM
-    if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
+    // if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
 #endif
     //Update the elapsed time and output counter
     etime = etime + dt;
@@ -408,7 +415,7 @@ void set_halo_values_x( double *state ) {
       state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + nx+hs+1] = state[ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + hs+1   ];
     }
   }
-  
+
 //   MPI_Request req_r[2], req_s[2];
 
 //   //Prepost receives
@@ -909,6 +916,7 @@ void reductions( double &mass , double &te ) {
   loc[0] = mass;
   loc[1] = te;
   // int ierr = MPI_Allreduce(loc,glob,2,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+  printf("mass: %f, te:: %f\n", mass, te);
   // mass = glob[0];
   // te   = glob[1];
 }

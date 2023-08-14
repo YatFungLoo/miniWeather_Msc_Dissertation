@@ -94,10 +94,10 @@ double *state;                //Fluid state.             Dimensions: (1-hs:nx+hs
 double *state_tmp;            //Fluid state.             Dimensions: (1-hs:nx+hs,1-hs:nz+hs,NUM_VARS)
 double *flux;                 //Cell interface fluxes.   Dimensions: (nx+1,nz+1,NUM_VARS)
 double *tend;                 //Fluid state tendencies.  Dimensions: (nx,nz,NUM_VARS)
-// double *sendbuf_l;            //Buffer to send data to the left MPI rank
-// double *sendbuf_r;            //Buffer to send data to the right MPI rank
-// double *recvbuf_l;            //Buffer to receive data from the left MPI rank
-// double *recvbuf_r;            //Buffer to receive data from the right MPI rank
+double *sendbuf_l;            //Buffer to send data to the left MPI rank
+double *sendbuf_r;            //Buffer to send data to the right MPI rank
+double *recvbuf_l;            //Buffer to receive data from the left MPI rank
+double *recvbuf_r;            //Buffer to receive data from the right MPI rank
 int    num_out = 0;           //The number of outputs performed so far
 int    direction_switch = 1;
 double mass0, te0;            //Initial domain totals for mass and total energy  
@@ -136,6 +136,9 @@ int main(int argc, char **argv) {
 
   init( &argc , &argv );
 
+  if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
+
+
 #pragma omp target data map(to:state_tmp[:(nz+2*hs)*(nx+2*hs)*NUM_VARS],hy_dens_cell[:nz+2*hs],hy_dens_theta_cell[:nz+2*hs],hy_dens_int[:nz+1],hy_dens_theta_int[:nz+1],hy_pressure_int[:nz+1]) \
         map(alloc:flux[:(nz+1)*(nx+1)*NUM_VARS],tend[:nz*nx*NUM_VARS]) \
         map(tofrom:state[:(nz+2*hs)*(nx+2*hs)*NUM_VARS])
@@ -159,7 +162,7 @@ int main(int argc, char **argv) {
     perform_timestep(state,state_tmp,flux,tend,dt);
     //Inform the user
 #ifndef NO_INFORM
-    if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
+    // if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
 #endif
     //Update the elapsed time and output counter
     etime = etime + dt;
@@ -239,7 +242,8 @@ void semi_discrete_step( double *state_init , double *state_forcing , double *st
   }
 
   //Apply the tendencies to the fluid state
-#pragma omp target teams distribute parallel for simd num_teams(128) thread_limit(35157) collapse(3) depend(inout:asyncid) nowait
+// #pragma omp target teams distribute parallel for simd num_teams(128) thread_limit(35157) collapse(3) depend(inout:asyncid) nowait
+#pragma omp target teams distribute parallel for simd collapse(3) depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (k=0; k<nz; k++) {
       for (i=0; i<nx; i++) {
@@ -398,7 +402,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
 
 //Set this MPI task's halo values in the x-direction. This routine will require MPI
 void set_halo_values_x( double *state ) {
-  int k, ll, ind_r, ind_u, ind_t, i, s, ierr;
+  int k, ll, ind_r, ind_u, ind_t, i; // , s, ierr;
   double z;
 
   // MPI_Request req_r[2], req_s[2];
@@ -479,6 +483,8 @@ void set_halo_values_x( double *state ) {
 //decomposition in the vertical direction
 void set_halo_values_z( double *state ) {
   int          i, ll;
+  const double mnt_width = xlen/8;
+  double       x, xloc, mnt_deriv;
 #pragma omp target teams distribute parallel for simd collapse(2) depend(inout:asyncid) nowait
   for (ll=0; ll<NUM_VARS; ll++) {
     for (i=0; i<nx+2*hs; i++) {
@@ -504,8 +510,8 @@ void set_halo_values_z( double *state ) {
 
 
 void init( int *argc , char ***argv ) {
-  int    i, k, ii, kk, ll, ierr, inds, i_end;
-  double x, z, r, u, w, t, hr, ht, nper;
+  int    i, k, ii, kk, ll, ierr, inds; // , i_end;
+  double x, z, r, u, w, t, hr, ht; // , nper;
 
   nranks = 1;
   myrank = 0;

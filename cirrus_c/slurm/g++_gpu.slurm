@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=00:10:00
 
-#SBATCH --job-name=gfort-g++-gpu
+#SBATCH --job-name=g++-gpu
 #SBATCH --output=%x-%j.out
 #SBATCH --account=m22oc-s1754999
 
@@ -20,8 +20,10 @@ module switch -f gcc/12.2.0-gpu-offload
 # export OMP_NUM_THREADS=2
 echo ==========
 
-EXEC=g++_openmp45_test
-export OMP_NUM_THREADS=32
+# EXEC=g++_openmp45_gpu
+EXEC=g++_openacc
+
+# export OMP_NUM_THREADS=36
 # export OMP_THREAD_LIMIT=40000
 
 echo EXEC_NAME: ${EXEC}_gpu
