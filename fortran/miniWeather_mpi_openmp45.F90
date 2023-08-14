@@ -341,6 +341,7 @@ contains
     hv_coef = -hv_beta * dz / (16*dt)
     !Compute fluxes in the x-direction for each cell
     !$omp target teams distribute parallel do simd collapse(2) private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
+    ! $omp target teams distribute parallel do simd private(stencil,vals,d3_vals) depend(inout:asyncid) nowait
     do k = 1 , nz+1
 
       do i = 1 , nx
