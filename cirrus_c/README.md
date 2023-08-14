@@ -48,7 +48,7 @@ Test for each version are available, that check the correctness of the program, 
 
 ```make ${compiler}_test```
 
-> Note: test does not work ensure GPU target offload correctness, as it requries a job to be submitted to the GPU node.
+> Note: test does not work on GPU version, as it requries a job to be submitted to the GPU node. To ensure correctness, compare the output values has to be check manually.
 
 To test specific verion, please add the version at the end of the compiler name, synatax is as follow:
 
