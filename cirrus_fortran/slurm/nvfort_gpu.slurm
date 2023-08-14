@@ -25,18 +25,19 @@ EXEC=nvfort_openacc
 # EXEC2=nvfort_openacc
 # EXEC3=nvfort_do-concurrent
 
-# export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=36
+export ACC_NUM_COREs=36
 
 echo EXEC_NAME: ${EXEC}_gpu
 
 echo ==========
 
 run on gpu
-# srun -n 1 ../${EXEC}
+srun -n 1 ../${EXEC}
 
 # nvidia nsight system
 # srun -n 1 nsys profile --trace=openmp --gpu-metrics-device=all -o nsys_${EXEC} ../${EXEC}
-srun -n 1 nsys profile --trace=openacc --gpu-metrics-device=all -o nsys_${EXEC}_managed ../${EXEC}
+# srun -n 1 nsys profile --trace=openacc --gpu-metrics-device=all -o nsys_${EXEC}_managed ../${EXEC}
 
 # srun -n 1 nsys profile --trace=cuda --gpu-metrics-device=all -o nsys_${EXEC1}_100_cuda ../${EXEC1}
 # srun -n 1 nsys profile --trace=cuda --gpu-metrics-device=all -o nsys_${EXEC2}_100_cuda ../${EXEC2}

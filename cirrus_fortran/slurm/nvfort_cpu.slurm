@@ -39,4 +39,3 @@ srun --cpu-bind=cores ../${EXEC}
 
 # vtune hotspots
 # srun --cpu-bind=cores vtune -collect hotspots -r vtune-hotspots  ../${EXEC}
-2
