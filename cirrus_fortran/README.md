@@ -62,7 +62,7 @@ To test specific verion, please add the version at the end of the compiler name,
 
 ```make ${compiler}_${version}_test```
 
-To remove the test exec files, run:
+To remove the test exec files, run:miniWeather_Msc_Dissertation
 
 ```make clean_test```
 
@@ -72,4 +72,4 @@ to remove specific compilers exec, run:
 
 ## Submitting to compute node
 
-Slurm files are available under `\slurm` directory for each compiler and is denoted by the compiler name with the compute node that it is meant for. To use the slurm file, please ensure the executable is available, and edit the slurm file to point to the correct executable by changing `EXEC` argument
+Slurm files are available under `\slurm` directory for each compiler and is denoted by the compiler name with the compute node that it is meant for. To use the slurm file, please ensure the executable is available, and edit the slurm file to point to the correct executable by changing `EXEC` argument.

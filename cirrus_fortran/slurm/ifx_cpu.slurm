@@ -25,25 +25,19 @@ module load intel-20.4/vtune
 # lscpu
 echo ==========
 
-EXEC=ifx_serial
+# uncomment to select the executable
+# EXEC=ifx_serial
 # EXEC=ifx_openmp
 # EXEC=ifx_do-concurrent
+
 export OMP_NUM_THREADS=36
 export ACC_NUM_COREs=36
 
-echo EXEC_NAME: ${EXEC}
+echo EXEC_NAME: ${EXEC}_cpu
 echo ==========
 
 # run on cpu 
 srun --cpu-bind=cores ../${EXEC}
 
-# EXEC=ifx_serial
-# srun --cpu-bind=cores ../${EXEC}
-# EXEC=ifx_openmp
-# srun --cpu-bind=cores ../${EXEC}
-# EXEC=ifx_do-concurrent
-# srun --cpu-bind=cores ../${EXEC}
-
 # vtune hotspots
 # srun --cpu-bind=cores vtune -collect hotspots -r vtune-hotspots  ../${EXEC}
-2

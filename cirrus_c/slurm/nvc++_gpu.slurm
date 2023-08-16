@@ -20,10 +20,8 @@ module load intel-20.4/vtune
 # nvaccelinfo
 echo ==========
 
-# EXEC=nvc++_openacc
+EXEC=nvc++_openacc
 EXEC=nvc++_openmp45
-
-# export OMP_NUM_THREADS=1
 
 echo EXEC_NAME: ${EXEC}_gpu
 echo ==========

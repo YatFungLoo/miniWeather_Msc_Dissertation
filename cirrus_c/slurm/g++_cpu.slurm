@@ -23,17 +23,18 @@ module switch -f gcc/12.2.0-gpu-offload
 # nvaccelinfo
 echo ==========
 
+# uncomment to select the executable
 # EXEC=g++_serial_cpu
 # EXEC=g++_openmp_cpu
-EXEC=g++_openacc
+# EXEC=g++_openacc
 
 export OMP_NUM_THREADS=36
 export ACC_NUM_COREs=36
 
 echo EXEC_NAME: ${EXEC}_cpu
 echo ==========
+
 # run on gpu
-# srun -n 1 ../bin/${EXEC}
 srun --cpu-bind=cores ../${EXEC}
 
 # nvidia nsight system
@@ -41,5 +42,3 @@ srun --cpu-bind=cores ../${EXEC}
 
 # nvidia nsight compute
 # srun -n 1 ncu --section SpeedOfLight_RooflineChart -o ncu_${EXEC} ../${EXEC}
-
-# nsys profile --gpu-metrics-device=help
