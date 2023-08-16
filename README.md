@@ -1,3 +1,5 @@
+This is a fork as part of Yat Fung Loo (s1754999) dissertation project. The code being used for the project are under `cirrus_fortran` and `cirrus_c`, please refer to the directory's instruction on how to run the code on Cirrus compute nodes.
+
 # The MiniWeather Mini App
 
 A mini app simulating weather-like flows for training in parallelizing accelerated HPC architectures. Currently includes:
