@@ -24,9 +24,10 @@ module load intel-20.4/vtune
 # lscpu
 echo ==========
 
+# uncomment to select the executable
 # EXEC=nvc++_serial_cpu
 # EXEC=nvc++_openmp_cpu
-EXEC=nvc++_openacc
+# EXEC=nvc++_openacc
 
 export OMP_NUM_THREADS=36
 export ACC_NUM_COREs=36

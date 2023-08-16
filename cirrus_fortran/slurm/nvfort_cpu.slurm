@@ -24,14 +24,16 @@ module load intel-20.4/vtune
 # lscpu
 echo ==========
 
+# uncomment to select the executable
 # EXEC=nvhpc_serial
 # EXEC=nvhpc_openmp
-EXEC=nvhpc_openacc
+# EXEC=nvhpc_openacc
 # EXEC=nvhpc_do_concurrent
+
 export OMP_NUM_THREADS=36
 export ACC_NUM_COREs=36
 
-echo EXEC_NAME: ${EXEC}
+echo EXEC_NAME: ${EXEC}_cpu
 echo ==========
 
 # run on cpu 
